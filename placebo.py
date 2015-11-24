@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
+
+def _add_custom_class(base_classes, **kwargs):
+    base_classes.insert(0, PlaceboClient)
+
 
 class FakeHttpResponse(object):
 
@@ -19,29 +25,60 @@ class FakeHttpResponse(object):
         self.status_code = status_code
 
 
-class MockClient(object):
+class Placebo(object):
 
     _mock_responses = {}
 
     def __init__(self, client):
         self.client = client
+
+    def start(self):
+        # This is kind of sketchy.  We need to short-circuit the request
+        # process in botocore so we don't make any network requests.  The
+        # best way I have found is to mock out the make_request method of
+        # the Endpoint associated with the client but this is not a public
+        # attribute of the client so could change in the future.
+        self._save_make_request = self.client._endpoint.make_request
         self.client._endpoint.make_request = self.make_request
 
-    def add_response(self, operation_name, response_data,
+    def stop(self):
+        if self._save_mock_request:
+            self.client.make_request = self._save_mock_request
+
+    def _record_data(self, http_response, parsed, **kwargs):
+        _, service_name, operation_name = kwargs['event_name'].split('.')
+        self.add_response(service_name, operation_name, parsed,
+                          http_response.status_code)
+
+    def record(self):
+        event = 'after-call.{}'.format(
+            self.client.meta.service_model.endpoint_prefix)
+        self.client.meta.events.register(event, self._record_data)
+
+    def save(self, path):
+        with open(path, 'wb') as fp:
+            json.dump(self._mock_responses, fp, indent=4)
+
+    def load(self, path):
+        with open(path, 'rb') as fp:
+            self._mock_responses = json.load(fp)
+
+    def add_response(self, service_name, operation_name, response_data,
                      http_response=200):
         """
-        Add a mocked response to an operation.  The ``operation_name``
+        Add a placebo response to an operation.  The ``operation_name``
         should be the name of the operation in the service API (e.g.
         DescribeInstances), the ``response_data`` should a value you want
-        to return from a mocked call and the ``http_response`` should be
+        to return from a placebo call and the ``http_response`` should be
         the HTTP status code returned from the service.  You can add
         multiple responses for a given operation and they will be
         returned in order.
         """
-        if operation_name not in self._mock_responses:
-            self._mock_responses[operation_name] = {'index': 0,
-                                                    'responses': []}
-        self._mock_responses[operation_name]['responses'].append(
+        key = '{}.{}'.format(service_name, operation_name)
+        if key not in self._mock_responses:
+            self._mock_responses[key] = {'index': 0,
+                                         'responses': []}
+        self._mock_responses[key]['responses'].append(
             (http_response, response_data))
 
     def make_request(self, model, request_dict):
@@ -49,22 +86,25 @@ class MockClient(object):
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
         """
-        if model.name in self._mock_responses:
-            responses = self._mock_responses[model.name]['responses']
-            index = self._mock_responses[model.name]['index']
+        key = '{}.{}'.format(self.client.meta.service_model.endpoint_prefix,
+                             model.name)
+        if key in self._mock_responses:
+            responses = self._mock_responses[key]['responses']
+            index = self._mock_responses[key]['index']
             index = min(index, len(responses) - 1)
             http_response, data = responses[index]
-            self._mock_responses[model.name]['index'] += 1
+            self._mock_responses[key]['index'] += 1
         else:
             http_response, data = 200, {}
         return (FakeHttpResponse(http_response), data)
 
 
-def mock_client(client):
-    """
-    Pass in a boto3 client and this function will turn it into a mocked
-    client.  You can add mock responses using:
+class PlaceboClient(object):
 
-        client.mock.add_response(...)
-    """
-    client.mock = MockClient(client)
+    def __init__(self, *args, **kwargs):
+        super(PlaceboClient, self).__init__(*args, **kwargs)
+        self.placebo = Placebo(self)
+
+
+def attach(session):
+    session.events.register('creating-client-class', _add_custom_class)
