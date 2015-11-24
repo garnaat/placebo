@@ -51,10 +51,11 @@ class TestPlacebo(unittest.TestCase):
 
     def test_ec2(self):
         session = boto3.Session()
+        placebo.attach(session)
         ec2_client = session.client('ec2')
-        placebo.mock_client(ec2_client)
-        ec2_client.mock.add_response(
-            'DescribeAddresses', addresses_result_one)
+        ec2_client.placebo.add_response(
+            'ec2', 'DescribeAddresses', addresses_result_one)
+        ec2_client.placebo.begin()
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
         result = ec2_client.describe_addresses()
@@ -62,12 +63,13 @@ class TestPlacebo(unittest.TestCase):
 
     def test_ec2_multiple_responses(self):
         session = boto3.Session()
+        placebo.attach(session)
         ec2_client = session.client('ec2')
-        placebo.mock_client(ec2_client)
-        ec2_client.mock.add_response(
-            'DescribeKeyPairs', kp_result_one)
-        ec2_client.mock.add_response(
-            'DescribeKeyPairs', kp_result_two)
+        ec2_client.placebo.add_response(
+            'ec2', 'DescribeKeyPairs', kp_result_one)
+        ec2_client.placebo.add_response(
+            'ec2', 'DescribeKeyPairs', kp_result_two)
+        ec2_client.placebo.begin()
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
         result = ec2_client.describe_key_pairs()
