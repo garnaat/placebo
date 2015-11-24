@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='placebo',
-    version='0.1.1',
+    version='0.1.2',
     description='Make botocore calls that have no effect',
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
