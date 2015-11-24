@@ -38,10 +38,10 @@ placebo-aware.  To record a set of requests against that client:
 
 ```
 lambda = session.client('lambda')
-lambda.placebo.record()
+lambda.meta.placebo.record()
 lambda.list_functions()
 ... more lambda calls ...
-lambda.placebo.save('my_saved_lambda_calls.json')
+lambda.meta.placebo.save('my_saved_lambda_calls.json')
 ```
 
 The recorded calls will now be saved to the file
@@ -59,8 +59,8 @@ import placebo
 session = boto3.Session()
 placebo.attach(session)
 lambda = session.client('lambda')
-lambda.placebo.load('my_saved_lambda_calls.json')
-lambda.placebo.start()
+lambda.meta.placebo.load('my_saved_lambda_calls.json')
+lambda.meta.placebo.start()
 lambda.list_functions()
 ... mocked response will be returned
 ```
@@ -85,7 +85,7 @@ list_functions_response = [
     }]
 
     
-lambda.placebo.add_response('lambda', 'ListFunctions', list_functions_response, 200)
+lambda.meta.placebo.add_response('lambda', 'ListFunctions', list_functions_response, 200)
 ```
 
 You can add additional responses to a particular operation and the responses

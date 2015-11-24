@@ -53,9 +53,9 @@ class TestPlacebo(unittest.TestCase):
         session = boto3.Session()
         placebo.attach(session)
         ec2_client = session.client('ec2')
-        ec2_client.placebo.add_response(
+        ec2_client.meta.placebo.add_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
-        ec2_client.placebo.start()
+        ec2_client.meta.placebo.start()
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
         result = ec2_client.describe_addresses()
@@ -65,11 +65,11 @@ class TestPlacebo(unittest.TestCase):
         session = boto3.Session()
         placebo.attach(session)
         ec2_client = session.client('ec2')
-        ec2_client.placebo.add_response(
+        ec2_client.meta.placebo.add_response(
             'ec2', 'DescribeKeyPairs', kp_result_one)
-        ec2_client.placebo.add_response(
+        ec2_client.meta.placebo.add_response(
             'ec2', 'DescribeKeyPairs', kp_result_two)
-        ec2_client.placebo.start()
+        ec2_client.meta.placebo.start()
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
         result = ec2_client.describe_key_pairs()

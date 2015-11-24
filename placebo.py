@@ -103,7 +103,7 @@ class PlaceboClient(object):
 
     def __init__(self, *args, **kwargs):
         super(PlaceboClient, self).__init__(*args, **kwargs)
-        self.placebo = Placebo(self)
+        self.meta.placebo = Placebo(self)
 
 
 def attach(session):
