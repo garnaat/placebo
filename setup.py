@@ -7,7 +7,7 @@ import os
 
 setup(
     name='placebo',
-    version='0.1.0',
+    version='0.1.1',
     description='Make botocore calls that have no effect',
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
