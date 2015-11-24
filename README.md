@@ -54,7 +54,7 @@ import placebo
 session = boto3.Session()
 placebo.attach(session)
 lambda = session.client('lambda')
-lambda.placebo.begin()
+lambda.placebo.start()
 lambda.list_functions()
 ... mocked response will be returned
 ```

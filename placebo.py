@@ -32,7 +32,7 @@ class Placebo(object):
     def __init__(self, client):
         self.client = client
 
-    def begin(self):
+    def start(self):
         # This is kind of sketchy.  We need to short-circuit the request
         # process in botocore so we don't make any network requests.  The
         # best way I have found is to mock out the make_request method of
@@ -41,7 +41,7 @@ class Placebo(object):
         self._save_make_request = self.client._endpoint.make_request
         self.client._endpoint.make_request = self.make_request
 
-    def end(self):
+    def stop(self):
         if self._save_mock_request:
             self.client.make_request = self._save_mock_request
 
