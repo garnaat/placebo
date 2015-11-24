@@ -45,7 +45,12 @@ lambda.placebo.save('my_saved_lambda_calls.json')
 ```
 
 The recorded calls will now be saved to the file
-``my_saved_lambda_calls.json``.  Later, to use saved requests in a unit test:
+``my_saved_lambda_calls.json``.  Note that if you are going to save this file
+to your repo or somewhere public, you may want to review the responses and edit
+out things like account ID's, etc. that might not be appropriate to share
+publicly.
+
+Later, to use saved requests in a unit test:
 
 ```
 import boto3
@@ -54,6 +59,7 @@ import placebo
 session = boto3.Session()
 placebo.attach(session)
 lambda = session.client('lambda')
+lambda.placebo.load('my_saved_lambda_calls.json')
 lambda.placebo.start()
 lambda.list_functions()
 ... mocked response will be returned
