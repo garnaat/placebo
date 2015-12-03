@@ -56,11 +56,11 @@ class Placebo(object):
         self.client.meta.events.register(event, self._record_data)
 
     def save(self, path):
-        with open(path, 'wb') as fp:
+        with open(path, 'w') as fp:
             json.dump(self._mock_responses, fp, indent=4)
 
     def load(self, path):
-        with open(path, 'rb') as fp:
+        with open(path, 'r') as fp:
             self._mock_responses = json.load(fp)
 
     def add_response(self, service_name, operation_name, response_data,
