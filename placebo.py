@@ -27,10 +27,9 @@ class FakeHttpResponse(object):
 
 class Placebo(object):
 
-    _mock_responses = {}
-
     def __init__(self, client):
         self.client = client
+        self.mock_responses = {}
 
     def start(self):
         # This is kind of sketchy.  We need to short-circuit the request
@@ -75,10 +74,10 @@ class Placebo(object):
         returned in order.
         """
         key = '{}.{}'.format(service_name, operation_name)
-        if key not in self._mock_responses:
-            self._mock_responses[key] = {'index': 0,
-                                         'responses': []}
-        self._mock_responses[key]['responses'].append(
+        if key not in self.mock_responses:
+            self.mock_responses[key] = {'index': 0,
+                                        'responses': []}
+        self.mock_responses[key]['responses'].append(
             (http_response, response_data))
 
     def make_request(self, model, request_dict):
@@ -88,12 +87,12 @@ class Placebo(object):
         """
         key = '{}.{}'.format(self.client.meta.service_model.endpoint_prefix,
                              model.name)
-        if key in self._mock_responses:
-            responses = self._mock_responses[key]['responses']
-            index = self._mock_responses[key]['index']
+        if key in self.mock_responses:
+            responses = self.mock_responses[key]['responses']
+            index = self.mock_responses[key]['index']
             index = min(index, len(responses) - 1)
             http_response, data = responses[index]
-            self._mock_responses[key]['index'] += 1
+            self.mock_responses[key]['index'] += 1
         else:
             http_response, data = 200, {}
         return (FakeHttpResponse(http_response), data)

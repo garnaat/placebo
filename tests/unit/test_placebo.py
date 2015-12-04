@@ -76,3 +76,15 @@ class TestPlacebo(unittest.TestCase):
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'bar')
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'bar')
+
+    def test_multiple_clients(self):
+        session = boto3.Session()
+        placebo.attach(session)
+        ec2_client = session.client('ec2')
+        iam_client = session.client('iam')
+        ec2_client.meta.placebo.add_response(
+            'ec2', 'DescribeAddresses', addresses_result_one)
+        ec2_client.meta.placebo.start()
+        result = ec2_client.describe_addresses()
+        self.assertEqual(iam_client.meta.placebo.mock_responses, {})
+
