@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import datetime
 
 
 def _add_custom_class(base_classes, **kwargs):
@@ -56,11 +57,11 @@ class Placebo(object):
 
     def save(self, path):
         with open(path, 'w') as fp:
-            json.dump(self._mock_responses, fp, indent=4)
+            json.dump(self._mock_responses, fp, indent=4, default=serialize)
 
     def load(self, path):
         with open(path, 'r') as fp:
-            self._mock_responses = json.load(fp)
+            self._mock_responses = json.load(fp, object_hook=deserialize)
 
     def add_response(self, service_name, operation_name, response_data,
                      http_response=200):
@@ -107,3 +108,45 @@ class PlaceboClient(object):
 
 def attach(session):
     session.events.register('creating-client-class', _add_custom_class)
+
+
+def deserialize(obj):
+    """Convert JSON dicts back into objects"""
+    # Be careful of shallow copy here
+    target = dict(obj)
+
+    class_name = None
+    if '__class__' in target:
+        class_name = target.pop('__class__')
+    if '__module__' in obj:
+        module_name = obj.pop('__module__')
+    # Use getattr(module, class_name) for custom types if needed
+
+    if class_name == 'datetime':
+        return datetime.datetime(**target)
+
+    # Return unrecognized structures as-is
+    return obj
+
+
+def serialize(obj):
+    """Convert objects into JSON structures"""
+    # Record class and module information for deserialization
+    result = {'__class__': obj.__class__.__name__}
+    try:
+        result['__module__'] = obj.__module__
+    except AttributeError:
+        pass
+    # Convert objects to dictionary representation based on type
+    if isinstance(obj, datetime.datetime):
+        print "Converting datetime object"
+        result['year'] = obj.year
+        result['month'] = obj.month
+        result['day'] = obj.day
+        result['hour'] = obj.hour
+        result['minute'] = obj.minute
+        result['second'] = obj.second
+        result['microsecond'] = obj.microsecond
+        return result
+    # Raise a TypeError if the object isn't recognized
+    raise TypeError("Type not serializable")
