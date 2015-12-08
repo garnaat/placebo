@@ -56,12 +56,26 @@ class Placebo(object):
         self.client.meta.events.register(event, self._record_data)
 
     def save(self, path):
+        """Save recorded mock responses as a JSON document."""
+        # If passed a file-like object, use it directly.
+        if hasattr(path, 'write'):
+            json.dump(self.mock_responses, path, indent=4, default=serialize)
+            return
+        # If passed a string, treat it as a file path.
         with open(path, 'w') as fp:
-            json.dump(self._mock_responses, fp, indent=4, default=serialize)
+            json.dump(self.mock_responses, fp, indent=4, default=serialize)
 
     def load(self, path):
+        """
+        Load a JSON document containing previously recorded mock responses.
+        """
+        # If passed a file-like object, use it directly.
+        if hasattr(path, 'read'):
+            self.mock_responses = json.load(path, object_hook=deserialize)
+            return
+        # If passed a string, treat it as a file path.
         with open(path, 'r') as fp:
-            self._mock_responses = json.load(fp, object_hook=deserialize)
+            self.mock_responses = json.load(fp, object_hook=deserialize)
 
     def add_response(self, service_name, operation_name, response_data,
                      http_response=200):
@@ -111,26 +125,23 @@ def attach(session):
 
 
 def deserialize(obj):
-    """Convert JSON dicts back into objects"""
+    """Convert JSON dicts back into objects."""
     # Be careful of shallow copy here
     target = dict(obj)
-
     class_name = None
     if '__class__' in target:
         class_name = target.pop('__class__')
     if '__module__' in obj:
         module_name = obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
-
     if class_name == 'datetime':
         return datetime.datetime(**target)
-
     # Return unrecognized structures as-is
     return obj
 
 
 def serialize(obj):
-    """Convert objects into JSON structures"""
+    """Convert objects into JSON structures."""
     # Record class and module information for deserialization
     result = {'__class__': obj.__class__.__name__}
     try:
@@ -139,7 +150,6 @@ def serialize(obj):
         pass
     # Convert objects to dictionary representation based on type
     if isinstance(obj, datetime.datetime):
-        print "Converting datetime object"
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
