@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='placebo',
-    version='0.2.0',
+    version='0.3.0',
     description='Make boto3 calls that look real but have no effect',
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
