@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import boto3
+import datetime
+import placebo
+import StringIO
+import sys
 import unittest
 
-import boto3
-
-import placebo
 
 kp_result_one = {
     "KeyPairs": [
@@ -39,13 +41,45 @@ kp_result_two = {
 addresses_result_one = {
     "Addresses": [
         {
-            "InstanceId": "", 
-            "PublicIp": "192.168.0.1", 
+            "InstanceId": "",
+            "PublicIp": "192.168.0.1",
             "Domain": "standard"
         }
     ]
 }
 
+date_sample = {
+    "LoginProfile": {
+        "UserName": "baz",
+        "CreateDate": datetime.datetime(2015, 1, 4, 9, 1, 2, 0),
+    }
+}
+
+date_json = """{
+    "foo.get_foo": {
+        "index": 0,
+        "responses": [
+            [
+                200,
+                {
+                    "LoginProfile": {
+                        "UserName": "baz",
+                        "CreateDate": {
+                            "hour": 9,
+                            "__class__": "datetime",
+                            "month": 1,
+                            "second": 2,
+                            "microsecond": 0,
+                            "year": 2015,
+                            "day": 4,
+                            "minute": 1
+                        }
+                    }
+                }
+            ]
+        ]
+    }
+}"""
 
 class TestPlacebo(unittest.TestCase):
 
@@ -88,3 +122,21 @@ class TestPlacebo(unittest.TestCase):
         result = ec2_client.describe_addresses()
         self.assertEqual(iam_client.meta.placebo.mock_responses, {})
 
+    def test_datetime_to_json(self):
+        obj = placebo.Placebo(client='foo')
+        obj.add_response('foo', 'get_foo', date_sample)
+        tempfile = StringIO.StringIO()
+        obj.save(tempfile)
+        tempfile.seek(0)
+        result = tempfile.read()
+        self.assertEqual("".join(result.split()), "".join(date_json.split()))
+
+    def test_datetime_from_json(self):
+        obj = placebo.Placebo(client='foo')
+        source = StringIO.StringIO()
+        source.write(date_json)
+        source.seek(0)
+        obj.load(source)
+        service_data = obj.mock_responses['foo.get_foo']
+        response = service_data['responses'][0][1]
+        self.assertEqual(response, date_sample)
