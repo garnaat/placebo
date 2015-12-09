@@ -45,8 +45,9 @@ class Placebo(object):
         if self._save_mock_request:
             self.client.make_request = self._save_mock_request
 
-    def _record_data(self, http_response, parsed, **kwargs):
-        _, service_name, operation_name = kwargs['event_name'].split('.')
+    def _record_data(self, http_response, parsed, model, **kwargs):
+        service_name = self.client.meta.service_model.endpoint_prefix
+        operation_name = model.name
         self.add_response(service_name, operation_name, parsed,
                           http_response.status_code)
 
