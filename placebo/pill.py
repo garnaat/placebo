@@ -13,11 +13,11 @@
 # limitations under the License.
 
 import json
-import datetime
+import os
+import glob
+import re
 
-
-def _add_custom_class(base_classes, **kwargs):
-    base_classes.insert(0, PlaceboClient)
+from placebo.serializer import serialize, deserialize
 
 
 class FakeHttpResponse(object):
@@ -26,11 +26,14 @@ class FakeHttpResponse(object):
         self.status_code = status_code
 
 
-class Placebo(object):
+class Pill(object):
 
-    def __init__(self, client):
+    def __init__(self, client, data_path):
+        self.index_re = re.compile(r'.*_(?P<index>\d).json')
         self.client = client
-        self.mock_responses = {}
+        self.data_path = data_path
+        if self.data_path:
+            self.record()
 
     def start(self):
         # This is kind of sketchy.  We need to short-circuit the request
@@ -56,16 +59,6 @@ class Placebo(object):
             self.client.meta.service_model.endpoint_prefix)
         self.client.meta.events.register(event, self._record_data)
 
-    def save(self, path):
-        """Save recorded mock responses as a JSON document."""
-        # If passed a file-like object, use it directly.
-        if hasattr(path, 'write'):
-            json.dump(self.mock_responses, path, indent=4, default=serialize)
-            return
-        # If passed a string, treat it as a file path.
-        with open(path, 'w') as fp:
-            json.dump(self.mock_responses, fp, indent=4, default=serialize)
-
     def load(self, path):
         """
         Load a JSON document containing previously recorded mock responses.
@@ -78,10 +71,23 @@ class Placebo(object):
         with open(path, 'r') as fp:
             self.mock_responses = json.load(fp, object_hook=deserialize)
 
+    def _get_file_path(self, data_dir, base_name):
+        index = 0
+        glob_pattern = os.path.join(data_dir, base_name + '*')
+        for file_path in glob.glob(glob_pattern):
+            file_name = os.path.basename(file_path)
+            m = self.index_re.match(file_name)
+            if m:
+                i = int(m.group('index'))
+                if i > index:
+                    index = i
+        index += 1
+        return os.path.join(data_dir, '{}_{}.json'.format(base_name, index))
+
     def add_response(self, service_name, operation_name, response_data,
                      http_response=200):
         """
-        Add a placebo response to an operation.  The ``operation_name``
+        Store a response to the data directory.  The ``operation_name``
         should be the name of the operation in the service API (e.g.
         DescribeInstances), the ``response_data`` should a value you want
         to return from a placebo call and the ``http_response`` should be
@@ -89,12 +95,12 @@ class Placebo(object):
         multiple responses for a given operation and they will be
         returned in order.
         """
-        key = '{}.{}'.format(service_name, operation_name)
-        if key not in self.mock_responses:
-            self.mock_responses[key] = {'index': 0,
-                                        'responses': []}
-        self.mock_responses[key]['responses'].append(
-            (http_response, response_data))
+        base_name = '{}.{}'.format(service_name, operation_name)
+        filepath = self._get_file_path(self.data_path, base_name)
+        json_data = {'status_code': http_response,
+                     'data': response_data}
+        with open(filepath, 'w') as fp:
+            json.dump(json_data, fp, indent=4, default=serialize)
 
     def make_request(self, model, request_dict):
         """
@@ -112,52 +118,3 @@ class Placebo(object):
         else:
             http_response, data = 200, {}
         return (FakeHttpResponse(http_response), data)
-
-
-class PlaceboClient(object):
-
-    def __init__(self, *args, **kwargs):
-        super(PlaceboClient, self).__init__(*args, **kwargs)
-        self.meta.placebo = Placebo(self)
-
-
-def attach(session):
-    session.events.register('creating-client-class', _add_custom_class)
-
-
-def deserialize(obj):
-    """Convert JSON dicts back into objects."""
-    # Be careful of shallow copy here
-    target = dict(obj)
-    class_name = None
-    if '__class__' in target:
-        class_name = target.pop('__class__')
-    if '__module__' in obj:
-        module_name = obj.pop('__module__')
-    # Use getattr(module, class_name) for custom types if needed
-    if class_name == 'datetime':
-        return datetime.datetime(**target)
-    # Return unrecognized structures as-is
-    return obj
-
-
-def serialize(obj):
-    """Convert objects into JSON structures."""
-    # Record class and module information for deserialization
-    result = {'__class__': obj.__class__.__name__}
-    try:
-        result['__module__'] = obj.__module__
-    except AttributeError:
-        pass
-    # Convert objects to dictionary representation based on type
-    if isinstance(obj, datetime.datetime):
-        result['year'] = obj.year
-        result['month'] = obj.month
-        result['day'] = obj.day
-        result['hour'] = obj.hour
-        result['minute'] = obj.minute
-        result['second'] = obj.second
-        result['microsecond'] = obj.microsecond
-        return result
-    # Raise a TypeError if the object isn't recognized
-    raise TypeError("Type not serializable")
