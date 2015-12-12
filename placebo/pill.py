@@ -16,8 +16,15 @@ import json
 import os
 import glob
 import re
+import uuid
+import logging
 
 from placebo.serializer import serialize, deserialize
+
+LOG = logging.getLogger(__name__)
+DebugFmtString = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+fn_re = re.compile(r'(?P<service>\w*).(?P<operation>\w*)_(?P<index>\d+).json')
 
 
 class FakeHttpResponse(object):
@@ -28,66 +35,181 @@ class FakeHttpResponse(object):
 
 class Pill(object):
 
-    def __init__(self, client, data_path):
-        self.index_re = re.compile(r'.*_(?P<index>\d).json')
-        self.client = client
-        self.data_path = data_path
-        if self.data_path:
-            self.record()
+    clients = []
 
-    def start(self):
+    def __init__(self, debug=False):
+        if debug:
+            self._set_logger(__name__, logging.DEBUG)
+        self._uuid = str(uuid.uuid4())
+        self._data_path = None
+        self._mode = None
+        self._session = None
+        self._save_make_request = None
+        self._index = {}
+        self.events = []
+        self.clients = []
+
+    def _set_logger(self, logger_name, level=logging.INFO):
+        """
+        Convenience function to quickly configure full debug output
+        to go to the console.
+        """
+        log = logging.getLogger(logger_name)
+        log.setLevel(level)
+
+        ch = logging.StreamHandler(None)
+        ch.setLevel(level)
+
+        formatter = logging.Formatter(DebugFmtString)
+
+        # add formatter to ch
+        ch.setFormatter(formatter)
+
+        # add ch to logger
+        log.addHandler(ch)
+
+    def _create_shim_class(self):
+        # This is kind of tricky.  Maybe too tricky.
+        # We want to know about all of the clients that are created within
+        # the session we are attached to.  To do that, we dynamically
+        # create a Class object that will become a superclass of each
+        # new client that gets created.  This superclass has an __init__
+        # method that appends the new client instance into this Pill
+        # instance's list of clients.  The ugly code messing around with
+        # mro() is there because we have to define an __init__ method in
+        # our dynamically created class so we have to make sure it
+        # calls it's superclass's __init__ methods.  We can't use
+        # super() because that needs the class (which we are in the process
+        # of creating) so we walk the method resolution order to find
+        # our superclass.  The funny business with foo is because the
+        # self inside _init_method stomps on the self defined in the
+        # scope of this method but we really just need a reference to
+        # the the method for adding a client.
+        foo = self.add_client
+
+        def _init_method(self, *args, **kwargs):
+            res_order = self.__class__.mro()
+            for i, cls in enumerate(res_order):
+                if cls.__name__ == 'PillShim':
+                    break
+            super_cls_index = i + 1
+            if len(res_order) >= super_cls_index + 1:
+                super_cls = res_order[super_cls_index]
+                super_cls.__init__(self, *args, **kwargs)
+            foo(self)
+
+        class_attributes = {'__init__': _init_method}
+        bases = []
+        class_name = 'PillShim'
+        cls = type(class_name, tuple(bases), class_attributes)
+        return cls
+
+    def _create_client(self, class_attributes, base_classes, **kwargs):
+        LOG.debug('_create_client')
+        base_classes.insert(0, self._create_shim_class())
+
+    def add_client(self, client):
+        self.clients.append(client)
+        if self._mode == 'playback':
+            self._playback_client(client)
+
+    def attach(self, session, data_path):
+        LOG.debug('attaching to session: %s', session)
+        LOG.debug('datapath: %s', data_path)
+        self._session = session
+        self._data_path = data_path
+        session.events.register('creating-client-class', self._create_client)
+
+    def record(self, services='*', operations='*'):
+        if self._mode == 'playback':
+            self.stop()
+        if self._mode is None:
+            self._mode = 'record'
+            for service in services.split(','):
+                for operation in operations.split(','):
+                    event = 'after-call.{}.{}'.format(
+                        service.strip(), operation.strip())
+                    LOG.debug('recording: %s', event)
+                    self.events.append(event)
+                    self._session.events.register(
+                        event, self._record_data, self._uuid)
+
+    def _playback_client(self, client):
+        if self._save_make_request is None:
+            self._save_make_request = client._endpoint.make_request
+        client._endpoint.make_request = self._make_request
+
+    def playback(self):
         # This is kind of sketchy.  We need to short-circuit the request
         # process in botocore so we don't make any network requests.  The
         # best way I have found is to mock out the make_request method of
         # the Endpoint associated with the client but this is not a public
         # attribute of the client so could change in the future.
-        self._save_make_request = self.client._endpoint.make_request
-        self.client._endpoint.make_request = self.make_request
+        if self._mode == 'record':
+            self.stop()
+        if self._mode is None:
+            LOG.debug('playback')
+            for client in self.clients:
+                self._playback_client(client)
+            self._mode = 'playback'
 
     def stop(self):
-        if self._save_mock_request:
-            self.client.make_request = self._save_mock_request
+        LOG.debug('stopping, mode=%s', self._mode)
+        if self._mode == 'record':
+            if self._session:
+                for event in self.events:
+                    self._session.events.unregister(
+                        event, unique_id=self._uuid)
+                self.events = []
+        elif self._mode == 'playback':
+            if self._save_make_request:
+                for client in self.clients:
+                    client.make_request = self._save_make_request
+        self._mode = None
 
     def _record_data(self, http_response, parsed, model, **kwargs):
-        service_name = self.client.meta.service_model.endpoint_prefix
+        LOG.debug('_record_data')
+        service_name = model.service_model.endpoint_prefix
         operation_name = model.name
-        self.add_response(service_name, operation_name, parsed,
-                          http_response.status_code)
+        self.save_response(service_name, operation_name, parsed,
+                           http_response.status_code)
 
-    def record(self):
-        event = 'after-call.{}'.format(
-            self.client.meta.service_model.endpoint_prefix)
-        self.client.meta.events.register(event, self._record_data)
-
-    def load(self, path):
-        """
-        Load a JSON document containing previously recorded mock responses.
-        """
-        # If passed a file-like object, use it directly.
-        if hasattr(path, 'read'):
-            self.mock_responses = json.load(path, object_hook=deserialize)
-            return
-        # If passed a string, treat it as a file path.
-        with open(path, 'r') as fp:
-            self.mock_responses = json.load(fp, object_hook=deserialize)
-
-    def _get_file_path(self, data_dir, base_name):
+    def _get_new_file_path(self, service, operation):
+        base_name = '{}.{}'.format(service, operation)
         index = 0
-        glob_pattern = os.path.join(data_dir, base_name + '*')
+        glob_pattern = os.path.join(self._data_path, base_name + '*')
         for file_path in glob.glob(glob_pattern):
             file_name = os.path.basename(file_path)
-            m = self.index_re.match(file_name)
+            m = fn_re.match(file_name)
             if m:
                 i = int(m.group('index'))
                 if i > index:
                     index = i
         index += 1
-        return os.path.join(data_dir, '{}_{}.json'.format(base_name, index))
+        return os.path.join(
+            self._data_path, '{}_{}.json'.format(base_name, index))
 
-    def add_response(self, service_name, operation_name, response_data,
-                     http_response=200):
+    def _get_next_file_path(self, service, operation):
+        base_name = '{}.{}'.format(service, operation)
+        LOG.debug('_get_next_file_path: %s.%s', service, operation)
+        next_file = None
+        while next_file is None:
+            index = self._index.setdefault(base_name, 1)
+            fn = os.path.join(
+                self._data_path, base_name + '_{}.json'.format(index))
+            if os.path.exists(fn):
+                next_file = fn
+            elif index != 1:
+                self._index[base_name] += 1
+            else:
+                # we are looking for the first index and it's not here
+                raise IOError('response file ({}) not found'.format(fn))
+        return fn
+
+    def save_response(self, service, operation, response_data,
+                      http_response=200):
         """
-        Store a response to the data directory.  The ``operation_name``
+        Store a response to the data directory.  The ``operation``
         should be the name of the operation in the service API (e.g.
         DescribeInstances), the ``response_data`` should a value you want
         to return from a placebo call and the ``http_response`` should be
@@ -95,26 +217,29 @@ class Pill(object):
         multiple responses for a given operation and they will be
         returned in order.
         """
-        base_name = '{}.{}'.format(service_name, operation_name)
-        filepath = self._get_file_path(self.data_path, base_name)
+        LOG.debug('save_response: %s.%s', service, operation)
+        filepath = self._get_new_file_path(service, operation)
+        LOG.debug('save_response: path=%s', filepath)
         json_data = {'status_code': http_response,
                      'data': response_data}
         with open(filepath, 'w') as fp:
             json.dump(json_data, fp, indent=4, default=serialize)
 
-    def make_request(self, model, request_dict):
+    def _load_response(self, service, operation):
+        LOG.debug('_load_response: %s.%s', service, operation)
+        response_file = self._get_next_file_path(service, operation)
+        LOG.debug('_load_responses: %s', response_file)
+        with open(response_file, 'r') as fp:
+            response_data = json.load(fp, object_hook=deserialize)
+        return (FakeHttpResponse(response_data['status_code']),
+                response_data['data'])
+
+    def _make_request(self, model, request_dict):
         """
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
         """
-        key = '{}.{}'.format(self.client.meta.service_model.endpoint_prefix,
-                             model.name)
-        if key in self.mock_responses:
-            responses = self.mock_responses[key]['responses']
-            index = self.mock_responses[key]['index']
-            index = min(index, len(responses) - 1)
-            http_response, data = responses[index]
-            self.mock_responses[key]['index'] += 1
-        else:
-            http_response, data = 200, {}
-        return (FakeHttpResponse(http_response), data)
+        service = model.service_model.endpoint_prefix
+        operation = model.name
+        LOG.debug('_make_request: %s.%s', service, operation)
+        return self._load_response(service, operation)

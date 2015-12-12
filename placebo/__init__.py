@@ -15,33 +15,7 @@
 from placebo.pill import Pill
 
 
-_data_path = None
-_mode = None
-
-
-class PlaceboClient(object):
-
-    def __init__(self, *args, **kwargs):
-        global data_path
-        super(PlaceboClient, self).__init__(*args, **kwargs)
-        self.meta.pill = Pill(self, data_path)
-
-
-def _add_custom_class(base_classes, **kwargs):
-    base_classes.insert(0, PlaceboClient)
-
-
-def record(data_path):
-    global _data_path, _mode
-    _data_path = data_path
-    _mode = 'record'
-
-
-def playback(data_path):
-    global _data_path, _mode
-    _data_path = data_path
-    _mode = 'playback'
-
-
-def attach(session):
-    session.events.register('creating-client-class', _add_custom_class)
+def attach(session, data_file):
+    pill = Pill()
+    pill.attach(session, data_file)
+    return pill

@@ -30,37 +30,65 @@ Once you have a Session object, you can tell placebo about the Session like
 this:
 
 ```
-placebo.attach(session)
+pill = placebo.attach(session, data_dir='/path/to/response/directory')
 ```
 
-From this point on, all clients that are created from the session will be
-placebo-aware.  To record a set of requests against that client:
+The ``data_dir`` is a path to a directory where you want responses to be stored
+or that contains previously recorded responses you want to playback.
+
+The ``attach`` function returns an instance of a ``Pill`` object.  This object
+will be used to control all recording and playback of requests for all clients
+created by this session object.
+
+The first thing you will probably want to do is record some requests.  To do
+this, simply:
+
+```
+pill.record()
+```
+
+By default, the ``record`` method will cause all responses from all services to
+be recorded to the ``data_dir``.  If you are only interested in responses from
+one certain services, you can limit the recording by passing in a list of
+service names.
+
+```
+pill.record(services='ec2,iam')
+```
+
+This would limit to recording to responses from the ``ec2`` service and the
+``iam`` service.  If you want to restrict recording to only certain operations
+in a single service, you can do this:
+
+```
+pill.record(services='ec2', operations='DescribeInstances,DescribeKeyPairs')
+```
+
+From this point on, any clients that match the recording specification and are
+created from the session will be placebo-aware.  To record responses, just
+create the client and use it as you normally would.
 
 ```
 lambda = session.client('lambda')
-lambda.meta.placebo.record()
 lambda.list_functions()
 ... more lambda calls ...
-lambda.meta.placebo.save('my_saved_lambda_calls.json')
 ```
 
-The recorded calls will now be saved to the file
-``my_saved_lambda_calls.json``.  Note that if you are going to save this file
-to your repo or somewhere public, you may want to review the responses and edit
-out things like account ID's, etc. that might not be appropriate to share
-publicly.
+Each response will be saved as an individual JSON data file in the ``data_dir``
+path you specified when you attached the session.  Multiple responses from the
+same service and operation are stored as separate files and will be replayed in
+the same order on playback.
 
-Later, to use saved requests in a unit test:
+Later, to replay saved requests:
 
 ```
 import boto3
 import placebo
 
 session = boto3.Session()
-placebo.attach(session)
+pill = placebo.attach(session, data_dir='/path/to/response/directory')
+pill.playback()
 lambda = session.client('lambda')
-lambda.meta.placebo.load('my_saved_lambda_calls.json')
-lambda.meta.placebo.start()
 lambda.list_functions()
 ... mocked response will be returned
 ```
@@ -84,8 +112,8 @@ list_functions_response = [
         "Description": "Foos all of the bars"
     }]
 
-    
-lambda.meta.placebo.add_response('lambda', 'ListFunctions', list_functions_response, 200)
+pill.save_response(service='lambda', operation='ListFunctions',
+                   response_data=list_functions_response, http_response=200)
 ```
 
 You can add additional responses to a particular operation and the responses
