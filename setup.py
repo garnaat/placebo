@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(
@@ -10,7 +10,8 @@ setup(
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
     url='https://github.com/garnaat/placebo',
-    py_modules=['placebo'],
+    packages=find_packages(exclude=['tests*']),
+    package_dir={'placebo': 'placebo'},
     license=open("LICENSE").read(),
     classifiers=(
         'Development Status :: 3 - Alpha',
