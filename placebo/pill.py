@@ -24,8 +24,6 @@ from placebo.serializer import serialize, deserialize
 LOG = logging.getLogger(__name__)
 DebugFmtString = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-fn_re = re.compile(r'(?P<service>\w*).(?P<operation>\w*)_(?P<index>\d+).json')
-
 
 class FakeHttpResponse(object):
 
@@ -40,6 +38,7 @@ class Pill(object):
     def __init__(self, debug=False):
         if debug:
             self._set_logger(__name__, logging.DEBUG)
+        self.filename_re = re.compile(r'.*\..*_(?P<index>\d+).json')
         self._uuid = str(uuid.uuid4())
         self._data_path = None
         self._mode = None
@@ -174,13 +173,14 @@ class Pill(object):
         self.save_response(service_name, operation_name, parsed,
                            http_response.status_code)
 
-    def _get_new_file_path(self, service, operation):
+    def get_new_file_path(self, service, operation):
         base_name = '{}.{}'.format(service, operation)
+        LOG.debug('get_new_file_path: %s', base_name)
         index = 0
         glob_pattern = os.path.join(self._data_path, base_name + '*')
         for file_path in glob.glob(glob_pattern):
             file_name = os.path.basename(file_path)
-            m = fn_re.match(file_name)
+            m = self.filename_re.match(file_name)
             if m:
                 i = int(m.group('index'))
                 if i > index:
@@ -189,9 +189,9 @@ class Pill(object):
         return os.path.join(
             self._data_path, '{}_{}.json'.format(base_name, index))
 
-    def _get_next_file_path(self, service, operation):
+    def get_next_file_path(self, service, operation):
         base_name = '{}.{}'.format(service, operation)
-        LOG.debug('_get_next_file_path: %s.%s', service, operation)
+        LOG.debug('get_next_file_path: %s', base_name)
         next_file = None
         while next_file is None:
             index = self._index.setdefault(base_name, 1)
@@ -199,8 +199,9 @@ class Pill(object):
                 self._data_path, base_name + '_{}.json'.format(index))
             if os.path.exists(fn):
                 next_file = fn
-            elif index != 1:
                 self._index[base_name] += 1
+            elif index != 1:
+                self._index[base_name] = 1
             else:
                 # we are looking for the first index and it's not here
                 raise IOError('response file ({}) not found'.format(fn))
@@ -218,17 +219,17 @@ class Pill(object):
         returned in order.
         """
         LOG.debug('save_response: %s.%s', service, operation)
-        filepath = self._get_new_file_path(service, operation)
+        filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
         json_data = {'status_code': http_response,
                      'data': response_data}
         with open(filepath, 'w') as fp:
             json.dump(json_data, fp, indent=4, default=serialize)
 
-    def _load_response(self, service, operation):
-        LOG.debug('_load_response: %s.%s', service, operation)
-        response_file = self._get_next_file_path(service, operation)
-        LOG.debug('_load_responses: %s', response_file)
+    def load_response(self, service, operation):
+        LOG.debug('load_response: %s.%s', service, operation)
+        response_file = self.get_next_file_path(service, operation)
+        LOG.debug('load_responses: %s', response_file)
         with open(response_file, 'r') as fp:
             response_data = json.load(fp, object_hook=deserialize)
         return (FakeHttpResponse(response_data['status_code']),
@@ -242,4 +243,4 @@ class Pill(object):
         service = model.service_model.endpoint_prefix
         operation = model.name
         LOG.debug('_make_request: %s.%s', service, operation)
-        return self._load_response(service, operation)
+        return self.load_response(service, operation)

@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import boto3
-import datetime
-import placebo
-import StringIO
-import sys
 import unittest
+import os
+import shutil
+
+import boto3
+
+import placebo
 
 
 kp_result_one = {
@@ -48,95 +49,60 @@ addresses_result_one = {
     ]
 }
 
-date_sample = {
-    "LoginProfile": {
-        "UserName": "baz",
-        "CreateDate": datetime.datetime(2015, 1, 4, 9, 1, 2, 0),
-    }
-}
 
-date_json = """{
-    "foo.get_foo": {
-        "index": 0,
-        "responses": [
-            [
-                200,
-                {
-                    "LoginProfile": {
-                        "UserName": "baz",
-                        "CreateDate": {
-                            "hour": 9,
-                            "__class__": "datetime",
-                            "month": 1,
-                            "second": 2,
-                            "microsecond": 0,
-                            "year": 2015,
-                            "day": 4,
-                            "minute": 1
-                        }
-                    }
-                }
-            ]
-        ]
-    }
-}"""
+def path(filename):
+    return os.path.join(os.path.dirname(__file__), 'cfg', filename)
+
 
 class TestPlacebo(unittest.TestCase):
 
+    def setUp(self):
+        self.data_path = os.path.join(os.path.dirname(__file__), 'responses')
+        self.data_path = os.path.join(self.data_path, 'tests')
+        if os.path.exists(self.data_path):
+            shutil.rmtree(self.data_path)
+        os.mkdir(self.data_path)
+        self.session = boto3.Session()
+        self.pill = placebo.attach(self.session, self.data_path)
+
+    def tearDown(self):
+        if os.path.exists(self.data_path):
+            shutil.rmtree(self.data_path)
+
     def test_ec2(self):
-        session = boto3.Session()
-        placebo.attach(session)
-        ec2_client = session.client('ec2')
-        ec2_client.meta.placebo.add_response(
+        self.assertEqual(len(os.listdir(self.data_path)), 0)
+        self.pill.save_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
-        ec2_client.meta.placebo.start()
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
+        ec2_client = self.session.client('ec2')
+        self.pill.playback()
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
 
     def test_ec2_multiple_responses(self):
-        session = boto3.Session()
-        placebo.attach(session)
-        ec2_client = session.client('ec2')
-        ec2_client.meta.placebo.add_response(
+        self.assertEqual(len(os.listdir(self.data_path)), 0)
+        ec2_client = self.session.client('ec2')
+        self.pill.save_response(
             'ec2', 'DescribeKeyPairs', kp_result_one)
-        ec2_client.meta.placebo.add_response(
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
+        self.pill.save_response(
             'ec2', 'DescribeKeyPairs', kp_result_two)
-        ec2_client.meta.placebo.start()
+        self.assertEqual(len(os.listdir(self.data_path)), 2)
+        self.pill.playback()
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'bar')
         result = ec2_client.describe_key_pairs()
-        self.assertEqual(result['KeyPairs'][0]['KeyName'], 'bar')
+        self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
 
     def test_multiple_clients(self):
-        session = boto3.Session()
-        placebo.attach(session)
-        ec2_client = session.client('ec2')
-        iam_client = session.client('iam')
-        ec2_client.meta.placebo.add_response(
+        self.assertEqual(len(os.listdir(self.data_path)), 0)
+        ec2_client = self.session.client('ec2')
+        iam_client = self.session.client('iam')
+        self.pill.save_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
-        ec2_client.meta.placebo.start()
+        self.pill.playback()
         result = ec2_client.describe_addresses()
-        self.assertEqual(iam_client.meta.placebo.mock_responses, {})
-
-    def test_datetime_to_json(self):
-        obj = placebo.Placebo(client='foo')
-        obj.add_response('foo', 'get_foo', date_sample)
-        tempfile = StringIO.StringIO()
-        obj.save(tempfile)
-        tempfile.seek(0)
-        result = tempfile.read()
-        self.assertEqual("".join(result.split()), "".join(date_json.split()))
-
-    def test_datetime_from_json(self):
-        obj = placebo.Placebo(client='foo')
-        source = StringIO.StringIO()
-        source.write(date_json)
-        source.seek(0)
-        obj.load(source)
-        service_data = obj.mock_responses['foo.get_foo']
-        response = service_data['responses'][0][1]
-        self.assertEqual(response, date_sample)
