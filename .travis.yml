@@ -7,5 +7,5 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install coverage python-coveralls
-script: nosetests tests/unit --cover-erase --with-coverage --cover-package kappa
+script: nosetests tests/unit --cover-erase --with-coverage --cover-package placebo
 after_success: coveralls
