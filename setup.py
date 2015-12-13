@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='placebo',
-    version='0.3.0',
+    version='0.4.0',
     description='Make boto3 calls that look real but have no effect',
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
@@ -20,10 +20,10 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4'
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5'
     ),
 )
