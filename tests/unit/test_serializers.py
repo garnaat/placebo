@@ -26,13 +26,13 @@ date_sample = {
     }
 }
 
-date_json = """{"LoginProfile": {"UserName": "baz", "CreateDate": {"hour": 9, "__class__": "datetime", "month": 1, "second": 2, "microsecond": 0, "year": 2015, "day": 4, "minute": 1}}}"""
+date_json = """{"LoginProfile": {"CreateDate": {"__class__": "datetime", "day": 4, "hour": 9, "microsecond": 0, "minute": 1, "month": 1, "second": 2, "year": 2015}, "UserName": "baz"}}"""
 
 
 class TestSerializers(unittest.TestCase):
 
     def test_datetime_to_json(self):
-        result = json.dumps(date_sample, default=serialize)
+        result = json.dumps(date_sample, default=serialize, sort_keys=True)
         self.assertEqual(result, date_json)
 
     def test_datetime_from_json(self):
