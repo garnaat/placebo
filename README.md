@@ -34,10 +34,10 @@ Once you have a Session object, you can tell placebo about the Session like
 this:
 
 ```
-pill = placebo.attach(session, data_dir='/path/to/response/directory')
+pill = placebo.attach(session, data_path='/path/to/response/directory')
 ```
 
-The ``data_dir`` is a path to a directory where you want responses to be stored
+The ``data_path`` is a path to a directory where you want responses to be stored
 or that contains previously recorded responses you want to playback.
 
 The ``attach`` function returns an instance of a ``Pill`` object.  This object
@@ -52,7 +52,7 @@ pill.record()
 ```
 
 By default, the ``record`` method will cause all responses from all services to
-be recorded to the ``data_dir``.  If you are only interested in responses from
+be recorded to the ``data_path``.  If you are only interested in responses from
 one certain services, you can limit the recording by passing in a list of
 service names.
 
@@ -78,7 +78,7 @@ lambda.list_functions()
 ... more lambda calls ...
 ```
 
-Each response will be saved as an individual JSON data file in the ``data_dir``
+Each response will be saved as an individual JSON data file in the ``data_path``
 path you specified when you attached the session.  Multiple responses from the
 same service and operation are stored as separate files and will be replayed in
 the same order on playback.
@@ -90,7 +90,7 @@ import boto3
 import placebo
 
 session = boto3.Session()
-pill = placebo.attach(session, data_dir='/path/to/response/directory')
+pill = placebo.attach(session, data_path='/path/to/response/directory')
 pill.playback()
 lambda = session.client('lambda')
 lambda.list_functions()
@@ -102,17 +102,17 @@ You can also add mocked responses manually:
 ```
 list_functions_response = [
     {
-        "Version": "$LATEST", 
-        "CodeSha256": "I8Scq2g6ZKcPIvhKzvZqCiV4pDysxq4gZ+jLcMmDy5Y=", 
-        "FunctionName": "foobar", 
-        "MemorySize": 128, 
-        "CodeSize": 876521, 
-        "FunctionArn": "arn:aws:lambda:us-west-2:123456789012:function:foobar", 
-        "Handler": "foobar.handler", 
-        "Role": "arn:aws:iam::123456789012:role/foobar-role", 
-        "Timeout": 30, 
-        "LastModified": "2015-11-06T22:30:32.164+0000", 
-        "Runtime": "python2.7", 
+        "Version": "$LATEST",
+        "CodeSha256": "I8Scq2g6ZKcPIvhKzvZqCiV4pDysxq4gZ+jLcMmDy5Y=",
+        "FunctionName": "foobar",
+        "MemorySize": 128,
+        "CodeSize": 876521,
+        "FunctionArn": "arn:aws:lambda:us-west-2:123456789012:function:foobar",
+        "Handler": "foobar.handler",
+        "Role": "arn:aws:iam::123456789012:role/foobar-role",
+        "Timeout": 30,
+        "LastModified": "2015-11-06T22:30:32.164+0000",
+        "Runtime": "python2.7",
         "Description": "Foos all of the bars"
     }]
 
@@ -123,6 +123,3 @@ pill.save_response(service='lambda', operation='ListFunctions',
 You can add additional responses to a particular operation and the responses
 will be returned in order.  The final parameter is the HTTP response code which
 is optional.  The default value is 200.
-
-
-    
