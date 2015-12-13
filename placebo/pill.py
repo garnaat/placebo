@@ -48,6 +48,10 @@ class Pill(object):
         self.events = []
         self.clients = []
 
+    @property
+    def mode(self):
+        return self._mode
+
     def _set_logger(self, logger_name, level=logging.INFO):
         """
         Convenience function to quickly configure full debug output
@@ -122,16 +126,15 @@ class Pill(object):
     def record(self, services='*', operations='*'):
         if self._mode == 'playback':
             self.stop()
-        if self._mode is None:
-            self._mode = 'record'
-            for service in services.split(','):
-                for operation in operations.split(','):
-                    event = 'after-call.{}.{}'.format(
-                        service.strip(), operation.strip())
-                    LOG.debug('recording: %s', event)
-                    self.events.append(event)
-                    self._session.events.register(
-                        event, self._record_data, self._uuid)
+        self._mode = 'record'
+        for service in services.split(','):
+            for operation in operations.split(','):
+                event = 'after-call.{}.{}'.format(
+                    service.strip(), operation.strip())
+                LOG.debug('recording: %s', event)
+                self.events.append(event)
+                self._session.events.register(
+                    event, self._record_data, self._uuid)
 
     def _playback_client(self, client):
         if self._save_make_request is None:
@@ -144,23 +147,23 @@ class Pill(object):
         # best way I have found is to mock out the make_request method of
         # the Endpoint associated with the client but this is not a public
         # attribute of the client so could change in the future.
-        if self._mode == 'record':
+        if self.mode == 'record':
             self.stop()
-        if self._mode is None:
+        if self.mode is None:
             LOG.debug('playback')
             for client in self.clients:
                 self._playback_client(client)
             self._mode = 'playback'
 
     def stop(self):
-        LOG.debug('stopping, mode=%s', self._mode)
-        if self._mode == 'record':
+        LOG.debug('stopping, mode=%s', self.mode)
+        if self.mode == 'record':
             if self._session:
                 for event in self.events:
                     self._session.events.unregister(
                         event, unique_id=self._uuid)
                 self.events = []
-        elif self._mode == 'playback':
+        elif self.mode == 'playback':
             if self._save_make_request:
                 for client in self.clients:
                     client.make_request = self._save_make_request
