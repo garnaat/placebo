@@ -14,9 +14,9 @@
 
 import unittest
 import os
-import shutil
 
 import boto3
+import mock
 
 import placebo
 
@@ -24,9 +24,16 @@ import placebo
 class TestPlacebo(unittest.TestCase):
 
     def setUp(self):
+        self.environ = {}
+        self.environ_patch = mock.patch('os.environ', self.environ)
+        self.environ_patch.start()
+        credential_path = os.path.join(os.path.dirname(__file__), 'cfg',
+                                       'aws_credentials')
+        self.environ['AWS_SHARED_CREDENTIALS_FILE'] = credential_path
         self.data_path = os.path.join(os.path.dirname(__file__), 'responses')
         self.data_path = os.path.join(self.data_path, 'saved')
-        self.session = boto3.Session()
+        self.session = boto3.Session(profile_name='foobar',
+                                     region_name='us-west-2')
         self.pill = placebo.attach(self.session, self.data_path)
 
     def tearDown(self):
