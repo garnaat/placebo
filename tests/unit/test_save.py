@@ -50,10 +50,6 @@ addresses_result_one = {
 }
 
 
-def path(filename):
-    return os.path.join(os.path.dirname(__file__), 'cfg', filename)
-
-
 class TestPlacebo(unittest.TestCase):
 
     def setUp(self):

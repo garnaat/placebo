@@ -1,0 +1,19 @@
+{
+    "status_code": 200, 
+    "data": {
+        "KeyPairs": [
+            {
+                "KeyName": "FooBar", 
+                "KeyFingerprint": "85:83:08:25:fa:96:45:ea:c9:15:04:12:af:45:3f:c0:ef:e8:b8:ce"
+            }, 
+            {
+                "KeyName": "FieBaz", 
+                "KeyFingerprint": "9b:02:68:c2:ff:32:38:1a:49:ec:c4:b5:b3:98:36:cf:cd:1f:73:cc"
+            }
+        ], 
+        "ResponseMetadata": {
+            "HTTPStatusCode": 200, 
+            "RequestId": "c0f77cb6-f4f4-42be-9408-bd540c168b90"
+        }
+    }
+}

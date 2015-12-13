@@ -1,6 +1,10 @@
 placebo
 =======
 
+[![Build Status](https://travis-ci.org/garnaat/placebo.svg)](https://travis-ci.org/garnaat/placebo)
+
+[![Code Health](https://landscape.io/github/garnaat/placebo/master/landscape.svg?style=flat)](https://landscape.io/github/garnaat/placebo/master)
+
 Placebo allows you to mock boto3 calls that look just like normal calls but
 actually have no effect at all.  It does this by allowing you to record a set
 of calls and save them to a data file and then replay those calls later

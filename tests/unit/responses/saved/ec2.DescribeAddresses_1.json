@@ -1,0 +1,16 @@
+{
+    "status_code": 200, 
+    "data": {
+        "Addresses": [
+            {
+                "PublicIp": "52.53.54.55", 
+                "Domain": "vpc", 
+                "AllocationId": "eipalloc-12345678"
+            }
+        ], 
+        "ResponseMetadata": {
+            "HTTPStatusCode": 200, 
+            "RequestId": "b0fe7bb2-6552-4ea8-8a36-9685044048ab"
+        }
+    }
+}
