@@ -106,3 +106,4 @@ class TestPlacebo(unittest.TestCase):
             'ec2', 'DescribeAddresses', addresses_result_one)
         self.pill.playback()
         result = ec2_client.describe_addresses()
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
