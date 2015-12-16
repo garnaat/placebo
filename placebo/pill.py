@@ -53,6 +53,10 @@ class Pill(object):
     def mode(self):
         return self._mode
 
+    @property
+    def data_path(self):
+        return self._data_path
+
     def _set_logger(self, logger_name, level=logging.INFO):
         """
         Convenience function to quickly configure full debug output
