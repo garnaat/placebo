@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import botocore
 import datetime
-
+import StringIO
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -27,6 +28,8 @@ def deserialize(obj):
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
         return datetime.datetime(**target)
+    if class_name == 'StreamingBody':
+        return StringIO.StringIO(target['payload'])
     # Return unrecognized structures as-is
     return obj
 
@@ -48,6 +51,10 @@ def serialize(obj):
         result['minute'] = obj.minute
         result['second'] = obj.second
         result['microsecond'] = obj.microsecond
+        return result
+    # Convert objects to dictionary representation based on type
+    if isinstance(obj, botocore.response.StreamingBody):
+        result['payload'] = obj.read() 
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
