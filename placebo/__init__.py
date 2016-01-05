@@ -15,7 +15,7 @@
 from placebo.pill import Pill
 
 
-def attach(session, data_path, debug=False):
-    pill = Pill(debug=debug)
+def attach(session, data_path, prefix=None, debug=False):
+    pill = Pill(prefix=prefix, debug=debug)
     pill.attach(session, data_path)
     return pill

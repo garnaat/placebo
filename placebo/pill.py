@@ -35,10 +35,11 @@ class Pill(object):
 
     clients = []
 
-    def __init__(self, debug=False):
+    def __init__(self, prefix=None, debug=False):
         if debug:
             self._set_logger(__name__, logging.DEBUG)
         self.filename_re = re.compile(r'.*\..*_(?P<index>\d+).json')
+        self.prefix = prefix
         self._uuid = str(uuid.uuid4())
         self._data_path = None
         self._mode = None
@@ -51,6 +52,10 @@ class Pill(object):
     @property
     def mode(self):
         return self._mode
+
+    @property
+    def data_path(self):
+        return self._data_path
 
     def _set_logger(self, logger_name, level=logging.INFO):
         """
@@ -178,6 +183,8 @@ class Pill(object):
 
     def get_new_file_path(self, service, operation):
         base_name = '{}.{}'.format(service, operation)
+        if self.prefix:
+            base_name = '{}.{}'.format(self.prefix, base_name)
         LOG.debug('get_new_file_path: %s', base_name)
         index = 0
         glob_pattern = os.path.join(self._data_path, base_name + '*')
@@ -194,6 +201,8 @@ class Pill(object):
 
     def get_next_file_path(self, service, operation):
         base_name = '{}.{}'.format(service, operation)
+        if self.prefix:
+            base_name = '{}.{}'.format(self.prefix, base_name)
         LOG.debug('get_next_file_path: %s', base_name)
         next_file = None
         while next_file is None:

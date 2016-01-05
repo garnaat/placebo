@@ -29,7 +29,7 @@ def deserialize(obj):
     if class_name == 'datetime':
         return datetime.datetime(**target)
     if class_name == 'StreamingBody':
-        return StringIO.StringIO(target['payload'])
+        return botocore.response.StreamingBody(StringIO.StringIO(target['payload']), len(target['payload']))
     # Return unrecognized structures as-is
     return obj
 
