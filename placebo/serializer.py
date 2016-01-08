@@ -27,7 +27,8 @@ def deserialize(obj):
         module_name = obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
-        return datetime.datetime(**target)
+        date = datetime.datetime(**target)
+        return date.replace(tzinfo=pytz.UTC)
     if class_name == 'StreamingBody':
         return botocore.response.StreamingBody(StringIO.StringIO(target['payload']), len(target['payload']))
     # Return unrecognized structures as-is
@@ -44,6 +45,9 @@ def serialize(obj):
         pass
     # Convert objects to dictionary representation based on type
     if isinstance(obj, datetime.datetime):
+        #convert time to UTC
+        obj = obj.astimezone(timezone('UTC'))
+
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
