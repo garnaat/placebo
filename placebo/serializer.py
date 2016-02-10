@@ -59,6 +59,10 @@ def serialize(obj):
     # Convert objects to dictionary representation based on type
     if isinstance(obj, botocore.response.StreamingBody):
         result['payload'] = obj.read() 
+        # Set the original stream to the buffered representation of itself,
+        # so that it can be re-read downstream.
+        obj._raw_stream = StringIO.StringIO(result['payload'])
+        obj._amount_read = 0
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
