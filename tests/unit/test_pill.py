@@ -59,6 +59,8 @@ class TestPill(unittest.TestCase):
     def test_playback(self):
         self.pill.playback()
         self.assertEqual(self.pill.mode, 'playback')
+        self.assertEqual(self.pill.events, ['before-call.*.*'])
+        self.pill.stop()
         self.assertEqual(self.pill.events, [])
 
     def test_clients(self):
