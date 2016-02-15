@@ -44,7 +44,6 @@ class Pill(object):
         self._data_path = None
         self._mode = None
         self._session = None
-        self._save_make_request = None
         self._index = {}
         self.events = []
         self.clients = []
@@ -118,8 +117,6 @@ class Pill(object):
 
     def add_client(self, client):
         self.clients.append(client)
-        if self._mode == 'playback':
-            self._playback_client(client)
 
     def attach(self, session, data_path):
         LOG.debug('attaching to session: %s', session)
@@ -141,23 +138,14 @@ class Pill(object):
                 self._session.events.register(
                     event, self._record_data, self._uuid)
 
-    def _playback_client(self, client):
-        if self._save_make_request is None:
-            self._save_make_request = client._endpoint.make_request
-        client._endpoint.make_request = self._make_request
-
     def playback(self):
-        # This is kind of sketchy.  We need to short-circuit the request
-        # process in botocore so we don't make any network requests.  The
-        # best way I have found is to mock out the make_request method of
-        # the Endpoint associated with the client but this is not a public
-        # attribute of the client so could change in the future.
         if self.mode == 'record':
             self.stop()
         if self.mode is None:
-            LOG.debug('playback')
-            for client in self.clients:
-                self._playback_client(client)
+            event = 'before-call.*.*'
+            self.events.append(event)
+            self._session.events.register(
+                event, self._mock_request, self._uuid)
             self._mode = 'playback'
 
     def stop(self):
@@ -169,9 +157,10 @@ class Pill(object):
                         event, unique_id=self._uuid)
                 self.events = []
         elif self.mode == 'playback':
-            if self._save_make_request:
-                for client in self.clients:
-                    client.make_request = self._save_make_request
+            if self._session:
+                for event in self.events:
+                    self._session.events.unregister(event, self._uuid)
+                self.events = []
         self._mode = None
 
     def _record_data(self, http_response, parsed, model, **kwargs):
@@ -247,11 +236,12 @@ class Pill(object):
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 
-    def _make_request(self, model, request_dict):
+    def _mock_request(self, **kwargs):
         """
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
         """
+        model = kwargs.get('model')
         service = model.service_model.endpoint_prefix
         operation = model.name
         LOG.debug('_make_request: %s.%s', service, operation)
