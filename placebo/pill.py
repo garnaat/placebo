@@ -136,7 +136,7 @@ class Pill(object):
                 LOG.debug('recording: %s', event)
                 self.events.append(event)
                 self._session.events.register(
-                    event, self._record_data, self._uuid)
+                    event, self._record_data, 'placebo-record-mode')
 
     def playback(self):
         if self.mode == 'record':
@@ -145,7 +145,7 @@ class Pill(object):
             event = 'before-call.*.*'
             self.events.append(event)
             self._session.events.register(
-                event, self._mock_request, self._uuid)
+                event, self._mock_request, 'placebo-playback-mode')
             self._mode = 'playback'
 
     def stop(self):
@@ -154,12 +154,13 @@ class Pill(object):
             if self._session:
                 for event in self.events:
                     self._session.events.unregister(
-                        event, unique_id=self._uuid)
+                        event, unique_id='placebo-record-mode')
                 self.events = []
         elif self.mode == 'playback':
             if self._session:
                 for event in self.events:
-                    self._session.events.unregister(event, self._uuid)
+                    self._session.events.unregister(
+                        event, unique_id='placebo-playback-mode')
                 self.events = []
         self._mode = None
 

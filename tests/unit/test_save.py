@@ -78,8 +78,8 @@ class TestPlacebo(unittest.TestCase):
         self.pill.save_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
         self.assertEqual(len(os.listdir(self.data_path)), 1)
-        ec2_client = self.session.client('ec2')
         self.pill.playback()
+        ec2_client = self.session.client('ec2')
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
         result = ec2_client.describe_addresses()
@@ -87,7 +87,6 @@ class TestPlacebo(unittest.TestCase):
 
     def test_ec2_multiple_responses(self):
         self.assertEqual(len(os.listdir(self.data_path)), 0)
-        ec2_client = self.session.client('ec2')
         self.pill.save_response(
             'ec2', 'DescribeKeyPairs', kp_result_one)
         self.assertEqual(len(os.listdir(self.data_path)), 1)
@@ -95,6 +94,7 @@ class TestPlacebo(unittest.TestCase):
             'ec2', 'DescribeKeyPairs', kp_result_two)
         self.assertEqual(len(os.listdir(self.data_path)), 2)
         self.pill.playback()
+        ec2_client = self.session.client('ec2')
         result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
         result = ec2_client.describe_key_pairs()
@@ -104,10 +104,10 @@ class TestPlacebo(unittest.TestCase):
 
     def test_multiple_clients(self):
         self.assertEqual(len(os.listdir(self.data_path)), 0)
-        ec2_client = self.session.client('ec2')
-        iam_client = self.session.client('iam')
         self.pill.save_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
         self.pill.playback()
+        ec2_client = self.session.client('ec2')
+        iam_client = self.session.client('iam')
         result = ec2_client.describe_addresses()
         self.assertEqual(len(os.listdir(self.data_path)), 1)
