@@ -78,3 +78,49 @@ class TestPlacebo(unittest.TestCase):
         target = os.path.join(self.data_path, filename)
         self.assertEqual(self.pill.get_next_file_path(service, operation),
                          target)
+
+
+class TestCallOrder(unittest.TestCase):
+
+    def setUp(self):
+        self.data_path = os.path.join(os.path.dirname(__file__), 'responses')
+        self.data_path = os.path.join(self.data_path, 'saved')
+        self.session = None
+        self.pill = None
+
+    def tearDown(self):
+        pass
+
+    def check_ec2_client_describe_addresses(self, ec2_client):
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '52.53.54.55')
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '53.54.55.56')
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '52.53.54.55')
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '53.54.55.56')
+
+    def test_client_pill_playback(self):
+        self.session = boto3.Session()
+        ec2_client = self.session.client('ec2')
+        self.pill = placebo.attach(self.session, self.data_path)
+        self.pill.playback()
+
+        self.check_ec2_client_describe_addresses(ec2_client)
+
+    def test_pill_client_playback(self):
+        self.session = boto3.Session()
+        self.pill = placebo.attach(self.session, self.data_path)
+        ec2_client = self.session.client('ec2')
+        self.pill.playback()
+
+        self.check_ec2_client_describe_addresses(ec2_client)
+
+    def test_pill_playback_client(self):
+        self.session = boto3.Session()
+        self.pill = placebo.attach(self.session, self.data_path)
+        self.pill.playback()
+        ec2_client = self.session.client('ec2')
+
+        self.check_ec2_client_describe_addresses(ec2_client)
