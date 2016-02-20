@@ -85,6 +85,7 @@ class TestCallOrder(unittest.TestCase):
     def setUp(self):
         self.data_path = os.path.join(os.path.dirname(__file__), 'responses')
         self.data_path = os.path.join(self.data_path, 'saved')
+        self.region_name = "eu-west-1"
         self.session = None
         self.pill = None
 
@@ -102,7 +103,7 @@ class TestCallOrder(unittest.TestCase):
         self.assertEqual(result['Addresses'][0]['PublicIp'], '53.54.55.56')
 
     def test_client_pill_playback(self):
-        self.session = boto3.Session()
+        self.session = boto3.Session(region_name=self.region_name)
         ec2_client = self.session.client('ec2')
         self.pill = placebo.attach(self.session, self.data_path)
         self.pill.playback()
@@ -110,7 +111,7 @@ class TestCallOrder(unittest.TestCase):
         self.check_ec2_client_describe_addresses(ec2_client)
 
     def test_pill_client_playback(self):
-        self.session = boto3.Session()
+        self.session = boto3.Session(region_name=self.region_name)
         self.pill = placebo.attach(self.session, self.data_path)
         ec2_client = self.session.client('ec2')
         self.pill.playback()
@@ -118,7 +119,7 @@ class TestCallOrder(unittest.TestCase):
         self.check_ec2_client_describe_addresses(ec2_client)
 
     def test_pill_playback_client(self):
-        self.session = boto3.Session()
+        self.session = boto3.Session(region_name=self.region_name)
         self.pill = placebo.attach(self.session, self.data_path)
         self.pill.playback()
         ec2_client = self.session.client('ec2')
