@@ -132,11 +132,11 @@ Placebo also provides a decorator for easier usage.
 
 First, you'll want to decorate your test method with `placebo_session` and include the `session` kwarg in your method, ex:
 ```python
-    @placebo_session
-    def test_your_function(self, session):
-        foo = Foo()
-        arn = foo.create_iam_roles(session)
-        self.assertEqual(arn, "arn:aws:iam::123:role/{}".format(foo.role_name))
+@placebo_session
+def test_your_function(self, session):
+    foo = Foo()
+    arn = foo.create_iam_roles(session)
+    self.assertEqual(arn, "arn:aws:iam::123:role/{}".format(foo.role_name))
 ```
 
 Now, you'll be able to record the AWS interactions with an environment variable:
