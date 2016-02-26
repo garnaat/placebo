@@ -135,7 +135,7 @@ class Pill(object):
         self._mode = 'record'
         for service in services.split(','):
             for operation in operations.split(','):
-                event = 'after-call.{}.{}'.format(
+                event = 'after-call.{0}.{1}'.format(
                     service.strip(), operation.strip())
                 LOG.debug('recording: %s', event)
                 self.events.append(event)
@@ -188,9 +188,9 @@ class Pill(object):
                            http_response.status_code)
 
     def get_new_file_path(self, service, operation):
-        base_name = '{}.{}'.format(service, operation)
+        base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
-            base_name = '{}.{}'.format(self.prefix, base_name)
+            base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_new_file_path: %s', base_name)
         index = 0
         glob_pattern = os.path.join(self._data_path, base_name + '*')
@@ -203,18 +203,18 @@ class Pill(object):
                     index = i
         index += 1
         return os.path.join(
-            self._data_path, '{}_{}.json'.format(base_name, index))
+            self._data_path, '{0}_{1}.json'.format(base_name, index))
 
     def get_next_file_path(self, service, operation):
-        base_name = '{}.{}'.format(service, operation)
+        base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
-            base_name = '{}.{}'.format(self.prefix, base_name)
+            base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_next_file_path: %s', base_name)
         next_file = None
         while next_file is None:
             index = self._index.setdefault(base_name, 1)
             fn = os.path.join(
-                self._data_path, base_name + '_{}.json'.format(index))
+                self._data_path, base_name + '_{0}.json'.format(index))
             if os.path.exists(fn):
                 next_file = fn
                 self._index[base_name] += 1
@@ -222,7 +222,7 @@ class Pill(object):
                 self._index[base_name] = 1
             else:
                 # we are looking for the first index and it's not here
-                raise IOError('response file ({}) not found'.format(fn))
+                raise IOError('response file ({0}) not found'.format(fn))
         return fn
 
     def save_response(self, service, operation, response_data,
