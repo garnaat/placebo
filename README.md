@@ -97,6 +97,8 @@ lambda.list_functions()
 ... mocked response will be returned
 ```
 
+#### Manual Mocking
+
 You can also add mocked responses manually:
 
 ```
@@ -123,3 +125,40 @@ pill.save_response(service='lambda', operation='ListFunctions',
 You can add additional responses to a particular operation and the responses
 will be returned in order.  The final parameter is the HTTP response code which
 is optional.  The default value is 200.
+
+#### Usage as a decorator
+
+Placebo also provides a decorator for easier usage.
+
+First, you'll want to decorate your test method with `placebo_session` and include the `session` kwarg in your method, ex:
+```python
+@placebo_session
+def test_your_function(self, session):
+    foo = Foo()
+    arn = foo.create_iam_roles(session)
+    self.assertEqual(arn, "arn:aws:iam::123:role/{}".format(foo.role_name))
+```
+
+Now, you'll be able to record the AWS interactions with an environment variable:
+```bash
+$ PLACEBO_MODE=record nosetests tests.tests:TestFoo.test_create_iam_roles
+```
+
+You can optionally pass an AWS profile to use:
+```bash
+$ PLACEBO_PROFILE=foo PLACEBO_MODE=record nosetests tests.tests:TestFoo.test_create_iam_roles
+```
+
+In this example, it has created the following JSON blobs:
+```bash
+tests/placebo/TestFoo.test_create_iam_roles
+tests/placebo/TestFoo.test_create_iam_roles/iam.CreateRole_1.json
+tests/placebo/TestFoo.test_create_iam_roles/iam.GetRole_1.json
+tests/placebo/TestFoo.test_create_iam_roles/iam.GetRolePolicy_1.json
+tests/placebo/TestFoo.test_create_iam_roles/iam.PutRolePolicy_1.json
+```
+
+After the JSON has been created, simply drop the environment variables and re-run your test:
+```bash
+$ nosetests tests.tests:TestFoo.test_create_iam_roles
+```
