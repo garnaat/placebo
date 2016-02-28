@@ -63,7 +63,7 @@ class TestPlacebo(unittest.TestCase):
         self.pill.prefix = 'foo'
         service = 'ec2'
         operation = 'DescribeAddresses'
-        filename = '{}.{}.{}_2.json'.format(self.pill.prefix, service,
+        filename = '{0}.{1}.{2}_2.json'.format(self.pill.prefix, service,
                                             operation)
         target = os.path.join(self.data_path, filename)
         self.assertEqual(self.pill.get_new_file_path(service, operation),
@@ -73,7 +73,7 @@ class TestPlacebo(unittest.TestCase):
         self.pill.prefix = 'foo'
         service = 'ec2'
         operation = 'DescribeAddresses'
-        filename = '{}.{}.{}_1.json'.format(self.pill.prefix, service,
+        filename = '{0}.{1}.{2}_1.json'.format(self.pill.prefix, service,
                                             operation)
         target = os.path.join(self.data_path, filename)
         self.assertEqual(self.pill.get_next_file_path(service, operation),

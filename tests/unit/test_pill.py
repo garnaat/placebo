@@ -67,10 +67,10 @@ class TestPill(unittest.TestCase):
         ec2 = self.session.client('ec2')
         iam = self.session.client('iam')
         self.assertEqual(len(self.pill.clients), 2)
-        self.assertIn(ec2, self.pill.clients)
-        self.assertIn(iam, self.pill.clients)
+        self.assertTrue(ec2 in self.pill.clients)
+        self.assertTrue(iam in self.pill.clients)
         session = boto3.Session(profile_name='foobar',
                                 region_name='us-west-2')
         new_ec2 = session.client('ec2')
         self.assertEqual(len(self.pill.clients), 2)
-        self.assertNotIn(new_ec2, self.pill.clients)
+        self.assertFalse(new_ec2 in self.pill.clients)
