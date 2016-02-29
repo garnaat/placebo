@@ -3,8 +3,6 @@ import boto3
 import os
 import functools
 
-PLACEBO_DIR = os.path.join(os.path.dirname(__file__), 'placebo')
-
 
 def placebo_session(function):
     """
@@ -14,6 +12,7 @@ def placebo_session(function):
     Accepts the following environment variables to configure placebo:
     PLACEBO_MODE: set to "record" to record AWS calls and save them
     PLACEBO_PROFILE: optionally set an AWS credential profile to record with
+    PLACEBO_DIR: set the directory to record to / read from
     """
 
     @functools.wraps(function)
@@ -29,7 +28,9 @@ def placebo_session(function):
 
         self = args[0]
         prefix = self.__class__.__name__ + '.' + function.__name__
-        record_dir = os.path.join(PLACEBO_DIR, prefix)
+        base_dir = os.environ.get("PLACEBO_DIR", os.getcwd())
+        base_dir = os.path.join(base_dir, "placebo")
+        record_dir = os.path.join(base_dir, prefix)
 
         if not os.path.exists(record_dir):
             os.makedirs(record_dir)
