@@ -28,8 +28,8 @@ def placebo_session(function):
 
         self = args[0]
         prefix = self.__class__.__name__ + '.' + function.__name__
-        base_dir = os.environ.get("PLACEBO_DIR", os.getcwd())
-        base_dir = os.path.join(base_dir, "placebo")
+        base_dir = os.environ.get(
+            "PLACEBO_DIR", os.path.join(os.getcwd(), "placebo"))
         record_dir = os.path.join(base_dir, prefix)
 
         if not os.path.exists(record_dir):
