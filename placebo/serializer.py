@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import botocore
 import datetime
 from botocore.response import StreamingBody
 from six import StringIO
-
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -28,9 +28,10 @@ def deserialize(obj):
         module_name = obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
-        return datetime.datetime(**target)
+        date = datetime.datetime(**target)
+        return date.replace(tzinfo=pytz.UTC)
     if class_name == 'StreamingBody':
-        return StringIO(target['body'])
+        return botocore.response.StreamingBody(StringIO.StringIO(target['payload']), len(target['payload']))
     # Return unrecognized structures as-is
     return obj
 
@@ -45,6 +46,9 @@ def serialize(obj):
         pass
     # Convert objects to dictionary representation based on type
     if isinstance(obj, datetime.datetime):
+        #convert time to UTC
+        obj = obj.astimezone(timezone('UTC'))
+
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
@@ -53,8 +57,13 @@ def serialize(obj):
         result['second'] = obj.second
         result['microsecond'] = obj.microsecond
         return result
-    if isinstance(obj, StreamingBody):
-        result['body'] = obj.read()
+    # Convert objects to dictionary representation based on type
+    if isinstance(obj, botocore.response.StreamingBody):
+        result['payload'] = obj.read() 
+        # Set the original stream to the buffered representation of itself,
+        # so that it can be re-read downstream.
+        obj._raw_stream = StringIO.StringIO(result['payload'])
+        obj._amount_read = 0
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
