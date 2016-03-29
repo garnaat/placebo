@@ -14,7 +14,8 @@
 
 import botocore
 import datetime
-import StringIO
+from botocore.response import StreamingBody
+from six import StringIO
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""

@@ -44,7 +44,6 @@ class Pill(object):
         self._data_path = None
         self._mode = None
         self._session = None
-        self._save_make_request = None
         self._index = {}
         self.events = []
         self.clients = []
@@ -56,6 +55,10 @@ class Pill(object):
     @property
     def data_path(self):
         return self._data_path
+
+    @property
+    def session(self):
+        return self._session
 
     def _set_logger(self, logger_name, level=logging.INFO):
         """
@@ -118,8 +121,6 @@ class Pill(object):
 
     def add_client(self, client):
         self.clients.append(client)
-        if self._mode == 'playback':
-            self._playback_client(client)
 
     def attach(self, session, data_path):
         LOG.debug('attaching to session: %s', session)
@@ -134,31 +135,28 @@ class Pill(object):
         self._mode = 'record'
         for service in services.split(','):
             for operation in operations.split(','):
-                event = 'after-call.{}.{}'.format(
+                event = 'after-call.{0}.{1}'.format(
                     service.strip(), operation.strip())
                 LOG.debug('recording: %s', event)
                 self.events.append(event)
                 self._session.events.register(
-                    event, self._record_data, self._uuid)
-
-    def _playback_client(self, client):
-        if self._save_make_request is None:
-            self._save_make_request = client._endpoint.make_request
-        client._endpoint.make_request = self._make_request
+                    event, self._record_data, 'placebo-record-mode')
+                for client in self.clients:
+                    client.meta.events.register(
+                        event, self._record_data, 'placebo-record-mode')
 
     def playback(self):
-        # This is kind of sketchy.  We need to short-circuit the request
-        # process in botocore so we don't make any network requests.  The
-        # best way I have found is to mock out the make_request method of
-        # the Endpoint associated with the client but this is not a public
-        # attribute of the client so could change in the future.
         if self.mode == 'record':
             self.stop()
         if self.mode is None:
-            LOG.debug('playback')
-            for client in self.clients:
-                self._playback_client(client)
+            event = 'before-call.*.*'
+            self.events.append(event)
+            self._session.events.register(
+                event, self._mock_request, 'placebo-playback-mode')
             self._mode = 'playback'
+            for client in self.clients:
+                client.meta.events.register(
+                    event, self._mock_request, 'placebo-playback-mode')
 
     def stop(self):
         LOG.debug('stopping, mode=%s', self.mode)
@@ -166,12 +164,20 @@ class Pill(object):
             if self._session:
                 for event in self.events:
                     self._session.events.unregister(
-                        event, unique_id=self._uuid)
+                        event, unique_id='placebo-record-mode')
+                    for client in self.clients:
+                        client.meta.events.unregister(
+                            event, unique_id='placebo-record-mode')
                 self.events = []
         elif self.mode == 'playback':
-            if self._save_make_request:
-                for client in self.clients:
-                    client.make_request = self._save_make_request
+            if self._session:
+                for event in self.events:
+                    self._session.events.unregister(
+                        event, unique_id='placebo-playback-mode')
+                    for client in self.clients:
+                        client.meta.events.unregister(
+                            event, unique_id='placebo-playback-mode')
+                self.events = []
         self._mode = None
 
     def _record_data(self, http_response, parsed, model, **kwargs):
@@ -182,9 +188,9 @@ class Pill(object):
                            http_response.status_code)
 
     def get_new_file_path(self, service, operation):
-        base_name = '{}.{}'.format(service, operation)
+        base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
-            base_name = '{}.{}'.format(self.prefix, base_name)
+            base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_new_file_path: %s', base_name)
         index = 0
         glob_pattern = os.path.join(self._data_path, base_name + '*')
@@ -197,18 +203,18 @@ class Pill(object):
                     index = i
         index += 1
         return os.path.join(
-            self._data_path, '{}_{}.json'.format(base_name, index))
+            self._data_path, '{0}_{1}.json'.format(base_name, index))
 
     def get_next_file_path(self, service, operation):
-        base_name = '{}.{}'.format(service, operation)
+        base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
-            base_name = '{}.{}'.format(self.prefix, base_name)
+            base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_next_file_path: %s', base_name)
         next_file = None
         while next_file is None:
             index = self._index.setdefault(base_name, 1)
             fn = os.path.join(
-                self._data_path, base_name + '_{}.json'.format(index))
+                self._data_path, base_name + '_{0}.json'.format(index))
             if os.path.exists(fn):
                 next_file = fn
                 self._index[base_name] += 1
@@ -216,7 +222,7 @@ class Pill(object):
                 self._index[base_name] = 1
             else:
                 # we are looking for the first index and it's not here
-                raise IOError('response file ({}) not found'.format(fn))
+                raise IOError('response file ({0}) not found'.format(fn))
         return fn
 
     def save_response(self, service, operation, response_data,
@@ -247,11 +253,12 @@ class Pill(object):
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 
-    def _make_request(self, model, request_dict):
+    def _mock_request(self, **kwargs):
         """
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
         """
+        model = kwargs.get('model')
         service = model.service_model.endpoint_prefix
         operation = model.name
         LOG.debug('_make_request: %s.%s', service, operation)
