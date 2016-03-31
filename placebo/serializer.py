@@ -17,6 +17,7 @@ import datetime
 from botocore.response import StreamingBody
 from six import StringIO
 import pytz
+from pytz import timezone
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""

@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 DebugFmtString = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 b64_operations = {
-    'kms': ['Decrypt', 'Encrypt']
+    'kms': ['Decrypt', 'Encrypt', 'GenerateDataKeyWithoutPlaintext', 'GenerateDataKey']
 }
 
 class FakeHttpResponse(object):
