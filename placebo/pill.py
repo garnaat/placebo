@@ -245,11 +245,12 @@ class Pill(object):
         LOG.debug('save_response: %s.%s', service, operation)
         filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
-
         if operation in b64_operations.get(service, {}):
             for key in response_data:
                 if(isinstance(response_data[key], basestring)):
                     response_data[key] = b64encode(response_data[key])
+        json_data = {'status_code': http_response,
+             'data': response_data}
         with open(filepath, 'w') as fp:
             json.dump(json_data, fp, indent=4, default=serialize)
         if operation in b64_operations.get(service, {}):
