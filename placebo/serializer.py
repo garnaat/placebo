@@ -26,16 +26,25 @@ def deserialize(obj):
     class_name = None
     if '__class__' in target:
         class_name = target.pop('__class__')
-    if '__module__' in obj:
-        module_name = obj.pop('__module__')
+    if '__module__' in target:
+        target.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
         date = datetime.datetime(**target)
         return date.replace(tzinfo=pytz.UTC)
     if class_name == 'StreamingBody':
-        return botocore.response.StreamingBody(StringIO(target['payload']), len(target['payload']))
+        for key in target:
+            if key == 'payload':
+                target[key] = botocore.response.StreamingBody(
+                    StringIO(target['payload']),
+                    len(str(target['payload']))
+                )
+                break
+
+        return target
     # Return unrecognized structures as-is
     return obj
+
 
 
 def serialize(obj):
