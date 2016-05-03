@@ -14,7 +14,7 @@ Installation
 ------------
 
 ```
-$ pip install git+https://github.com/avs3323/placebo
+$ pip install placebo
 ```
 
 Quickstart
