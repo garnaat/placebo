@@ -21,15 +21,16 @@ import logging
 
 from placebo.serializer import serialize, deserialize
 
-from base64 import b64encode
-from base64 import b64decode
+from base64 import b64encode, b64decode
 
 LOG = logging.getLogger(__name__)
 DebugFmtString = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 b64_operations = {
-    'kms': ['Decrypt', 'Encrypt', 'GenerateDataKeyWithoutPlaintext', 'GenerateDataKey']
+    'kms': ['Decrypt', 'Encrypt',
+            'GenerateDataKeyWithoutPlaintext', 'GenerateDataKey']
 }
+
 
 class FakeHttpResponse(object):
 
@@ -242,20 +243,21 @@ class Pill(object):
         multiple responses for a given operation and they will be
         returned in order.
         """
+
         LOG.debug('save_response: %s.%s', service, operation)
         filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
         if operation in b64_operations.get(service, {}):
             for key in response_data:
-                if(isinstance(response_data[key], basestring)):
+                if isinstance(response_data[key], unicode):
                     response_data[key] = b64encode(response_data[key])
         json_data = {'status_code': http_response,
-             'data': response_data}
+                     'data': response_data}
         with open(filepath, 'w') as fp:
             json.dump(json_data, fp, indent=4, default=serialize)
         if operation in b64_operations.get(service, {}):
             for key in response_data:
-                if(isinstance(response_data[key], basestring)):
+                if isinstance(response_data[key], unicode):
                     response_data[key] = b64decode(response_data[key])
 
     def load_response(self, service, operation):
@@ -266,8 +268,9 @@ class Pill(object):
             response_data = json.load(fp, object_hook=deserialize)
         if operation in b64_operations.get(service, {}):
             for key in response_data['data']:
-                if(isinstance(response_data['data'][key], basestring)):
-                    response_data['data'][key] = b64decode(response_data['data'][key])
+                if isinstance(response_data['data'][key], unicode):
+                    response_data['data'][key] = \
+                        b64decode(response_data['data'][key])
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import botocore
 import datetime
 import json
 from botocore.response import StreamingBody
@@ -23,25 +22,33 @@ from pytz import timezone
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
+
+    if '__module__' in obj:
+        obj.pop('__module__')
+
     # Be careful of shallow copy here
     target = dict(obj)
+
     class_name = None
     if '__class__' in target:
         class_name = target.pop('__class__')
-    if '__module__' in target:
-        target.pop('__module__')
+
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
         date = datetime.datetime(**target)
         return date.replace(tzinfo=pytz.UTC)
+
     if class_name == 'StreamingBody':
         key = u'payload'
         if key in target:
             io = StringIO(json.dumps(target['payload']))
-            target[key] = StreamingBody(raw_stream=io, content_length=len(io.getvalue()))
+            target[key] = StreamingBody(
+                raw_stream=io, content_length=len(io.getvalue())
+            )
 
         return target
-    # Return unrecognized structures as-is
+
+    # Return unrecognized structure as-is
     return obj
 
 
@@ -55,7 +62,7 @@ def serialize(obj):
         pass
     # Convert objects to dictionary representation based on type
     if isinstance(obj, datetime.datetime):
-        #convert time to UTC
+        # convert time to UTC
         obj = obj.astimezone(timezone('UTC'))
 
         result['year'] = obj.year
@@ -67,8 +74,8 @@ def serialize(obj):
         result['microsecond'] = obj.microsecond
         return result
     # Convert objects to dictionary representation based on type
-    if isinstance(obj, botocore.response.StreamingBody):
-        result['payload'] = obj.read() 
+    if isinstance(obj, StreamingBody):
+        result['payload'] = obj.read()
         # Set the original stream to the buffered representation of itself,
         # so that it can be re-read downstream.
         obj._raw_stream = StringIO(result['payload'])
