@@ -55,6 +55,8 @@ def serialize(obj):
         return result
     if isinstance(obj, StreamingBody):
         result['body'] = obj.read()
+        obj._raw_stream = StringIO(result['body'])
+        obj._amount_read = 0
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
