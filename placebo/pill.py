@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 import glob
 import re
 import uuid
 import logging
 
-from placebo.serializer import serialize, deserialize
+from placebo.serializer import Format, get_deserializer, get_serializer
 
 LOG = logging.getLogger(__name__)
 DebugFmtString = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -35,10 +34,18 @@ class Pill(object):
 
     clients = []
 
-    def __init__(self, prefix=None, debug=False):
+    def __init__(self, prefix=None, debug=False, record_format=Format.JSON):
         if debug:
             self._set_logger(__name__, logging.DEBUG)
-        self.filename_re = re.compile(r'.*\..*_(?P<index>\d+).json')
+
+        record_format = record_format.lower()
+        if record_format not in Format.ALLOWED:
+            LOG.warning("Record format not allowed. Falling back to default.")
+            record_format = Format.DEFAULT
+
+        self._serializer = get_serializer(record_format)
+        self._filename_re = re.compile(r'.*\..*_(?P<index>\d+).{0}'.format(record_format))
+        self._record_format = record_format
         self.prefix = prefix
         self._uuid = str(uuid.uuid4())
         self._data_path = None
@@ -60,7 +67,12 @@ class Pill(object):
     def session(self):
         return self._session
 
-    def _set_logger(self, logger_name, level=logging.INFO):
+    @property
+    def record_format(self):
+        return self._record_format
+
+    @staticmethod
+    def _set_logger(logger_name, level=logging.INFO):
         """
         Convenience function to quickly configure full debug output
         to go to the console.
@@ -196,34 +208,46 @@ class Pill(object):
         glob_pattern = os.path.join(self._data_path, base_name + '*')
         for file_path in glob.glob(glob_pattern):
             file_name = os.path.basename(file_path)
-            m = self.filename_re.match(file_name)
+            m = self._filename_re.match(file_name)
             if m:
                 i = int(m.group('index'))
                 if i > index:
                     index = i
         index += 1
         return os.path.join(
-            self._data_path, '{0}_{1}.json'.format(base_name, index))
+            self._data_path, '{0}_{1}.{2}'.format(base_name, index, self.record_format))
+
+    @staticmethod
+    def find_file_format(file_name):
+        """ Returns a tuple with the file path and format found, or (None, None) """
+        for file_format in Format.ALLOWED:
+            file_path = '.'.join((file_name, file_format))
+            if os.path.exists(file_path):
+                return file_path, file_format
+        return None, None
 
     def get_next_file_path(self, service, operation):
+        """ Returns a tuple with the next file to read and the serializer format used """
         base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_next_file_path: %s', base_name)
         next_file = None
-        while next_file is None:
-            index = self._index.setdefault(base_name, 1)
-            fn = os.path.join(
-                self._data_path, base_name + '_{0}.json'.format(index))
-            if os.path.exists(fn):
-                next_file = fn
+        serializer_format = None
+        index = self._index.setdefault(base_name, 1)
+
+        while not next_file:
+            file_name = os.path.join(self._data_path, base_name + '_{0}'.format(index))
+            next_file, serializer_format = self.find_file_format(file_name)
+            if next_file:
                 self._index[base_name] += 1
             elif index != 1:
+                index = 1
                 self._index[base_name] = 1
             else:
-                # we are looking for the first index and it's not here
-                raise IOError('response file ({0}) not found'.format(fn))
-        return fn
+                raise IOError('response file ({0}.[{1}]) not found'.format(file_name, "|".join(Format.ALLOWED)))
+
+        return next_file, serializer_format
 
     def save_response(self, service, operation, response_data,
                       http_response=200):
@@ -239,17 +263,17 @@ class Pill(object):
         LOG.debug('save_response: %s.%s', service, operation)
         filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
-        json_data = {'status_code': http_response,
-                     'data': response_data}
+        data = {'status_code': http_response,
+                'data': response_data}
         with open(filepath, 'w') as fp:
-            json.dump(json_data, fp, indent=4, default=serialize)
+            self._serializer(data, fp)
 
     def load_response(self, service, operation):
         LOG.debug('load_response: %s.%s', service, operation)
-        response_file = self.get_next_file_path(service, operation)
+        (response_file, file_format) = self.get_next_file_path(service, operation)
         LOG.debug('load_responses: %s', response_file)
         with open(response_file, 'r') as fp:
-            response_data = json.load(fp, object_hook=deserialize)
+            response_data = get_deserializer(file_format)(fp)
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 

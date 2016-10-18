@@ -97,6 +97,17 @@ lambda.list_functions()
 ... mocked response will be returned
 ```
 
+#### Using pickle
+
+The responses can also be saved using pickle instead of JSON documents.
+This can be useful to avoid serialization problems with complex types in
+the responses.
+
+To enable the pickle format:
+```
+pill = pill = placebo.attach(session, record_format="pickle")
+```
+
 #### Manual Mocking
 
 You can also add mocked responses manually:
@@ -147,6 +158,11 @@ $ PLACEBO_MODE=record nosetests tests.tests:TestFoo.test_create_iam_roles
 You can optionally pass an AWS profile to use:
 ```bash
 $ PLACEBO_PROFILE=foo PLACEBO_MODE=record nosetests tests.tests:TestFoo.test_create_iam_roles
+```
+
+You can optionally set the record format to use:
+```bash
+$ PLACEBO_FORMAT=pickle PLACEBO_MODE=record nosetests tests.tests:TestFoo.test_create_iam_roles
 ```
 
 In this example, it has created the following JSON blobs:

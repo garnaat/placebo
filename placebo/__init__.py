@@ -13,9 +13,10 @@
 # limitations under the License.
 
 from placebo.pill import Pill
+from placebo.serializer import Format
 
 
-def attach(session, data_path, prefix=None, debug=False):
-    pill = Pill(prefix=prefix, debug=debug)
+def attach(session, data_path, prefix=None, debug=False, record_format=Format.JSON):
+    pill = Pill(prefix=prefix, debug=debug, record_format=record_format)
     pill.attach(session, data_path)
     return pill

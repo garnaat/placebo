@@ -3,6 +3,8 @@ import boto3
 import os
 import functools
 
+from placebo.serializer import Format
+
 
 def placebo_session(function):
     """
@@ -32,10 +34,12 @@ def placebo_session(function):
             "PLACEBO_DIR", os.path.join(os.getcwd(), "placebo"))
         record_dir = os.path.join(base_dir, prefix)
 
+        record_format = os.environ.get('PLACEBO_FORMAT', Format.DEFAULT)
+
         if not os.path.exists(record_dir):
             os.makedirs(record_dir)
 
-        pill = placebo.attach(session, data_path=record_dir)
+        pill = placebo.attach(session, data_path=record_dir, record_format=record_format)
 
         if os.environ.get('PLACEBO_MODE') == 'record':
             pill.record()
