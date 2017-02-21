@@ -16,13 +16,13 @@ import datetime
 import unittest
 import json
 
-from placebo.serializer import serialize, deserialize
+from placebo.serializer import serialize, deserialize, utc
 
 
 date_sample = {
     "LoginProfile": {
         "UserName": "baz",
-        "CreateDate": datetime.datetime(2015, 1, 4, 9, 1, 2, 0),
+        "CreateDate": datetime.datetime(2015, 1, 4, 9, 1, 2, 0, tzinfo=utc),
     }
 }
 

@@ -12,10 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
+from datetime import datetime, timedelta, tzinfo
 from botocore.response import StreamingBody
 from six import StringIO
 
+class UTC(tzinfo):
+    """UTC"""
+
+    def utcoffset(self, dt):
+        return timedelta(0)
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return timedelta(0)
+
+utc = UTC()
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -28,7 +41,7 @@ def deserialize(obj):
         module_name = obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
-        return datetime.datetime(**target)
+        return datetime(tzinfo=utc, **target)
     if class_name == 'StreamingBody':
         return StringIO(target['body'])
     # Return unrecognized structures as-is
@@ -44,7 +57,7 @@ def serialize(obj):
     except AttributeError:
         pass
     # Convert objects to dictionary representation based on type
-    if isinstance(obj, datetime.datetime):
+    if isinstance(obj, datetime):
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
