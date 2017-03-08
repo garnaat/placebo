@@ -50,6 +50,21 @@ addresses_result_one = {
     ]
 }
 
+ecs_cluster = {
+    "cluster": [
+        {
+            "activeServicesCount": 0,
+            "clusterArn": "arn:aws:ecs:us-east-1:394828193847:cluster/My-cluster",
+            "clusterName": "My-cluster",
+            "pendingTasksCount": 0,
+            "registeredContainerInstancesCount": 0,
+            "runningTasksCount": 0,
+            "status": "ACTIVE"
+        }
+    ],
+    "failures": []
+}
+
 
 class TestPlacebo(unittest.TestCase):
 
@@ -111,3 +126,32 @@ class TestPlacebo(unittest.TestCase):
         iam_client = self.session.client('iam')
         result = ec2_client.describe_addresses()
         self.assertEqual(len(os.listdir(self.data_path)), 1)
+
+    def test_masking_arn(self):
+        """Verify only the account number of the ARN gets replaced."""
+        self.pill.mask_account_number = True
+        self.assertEqual(len(os.listdir(self.data_path)), 0)
+        self.pill.save_response(
+            'ecs', 'DescribeClusters', ecs_cluster)
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
+        self.pill.playback()
+        ecs_client = self.session.client('ecs')
+        response = ecs_client.describe_clusters(
+            clusters=[
+                'My-cluster'
+            ])
+        expected_response = {
+            "cluster": [
+                {
+                    "activeServicesCount": 0,
+                    "clusterArn": "arn:aws:ecs:us-east-1:123456789012:cluster/My-cluster",
+                    "clusterName": "My-cluster",
+                    "pendingTasksCount": 0,
+                    "registeredContainerInstancesCount": 0,
+                    "runningTasksCount": 0,
+                    "status": "ACTIVE"
+                }
+            ],
+            "failures": []
+        }
+        self.assertEqual(response, expected_response)
