@@ -15,9 +15,23 @@
 import json
 import pickle
 import datetime
+from datetime import datetime, timedelta, tzinfo
 from botocore.response import StreamingBody
 from six import StringIO
 
+class UTC(tzinfo):
+    """UTC"""
+
+    def utcoffset(self, dt):
+        return timedelta(0)
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return timedelta(0)
+
+utc = UTC()
 
 class Format:
     """
@@ -41,7 +55,7 @@ def deserialize(obj):
         module_name = obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
-        return datetime.datetime(**target)
+        return datetime(tzinfo=utc, **target)
     if class_name == 'StreamingBody':
         return StringIO(target['body'])
     # Return unrecognized structures as-is
@@ -57,7 +71,7 @@ def serialize(obj):
     except AttributeError:
         pass
     # Convert objects to dictionary representation based on type
-    if isinstance(obj, datetime.datetime):
+    if isinstance(obj, datetime):
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
@@ -68,6 +82,8 @@ def serialize(obj):
         return result
     if isinstance(obj, StreamingBody):
         result['body'] = obj.read()
+        obj._raw_stream = StringIO(result['body'])
+        obj._amount_read = 0
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
