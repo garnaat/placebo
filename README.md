@@ -97,6 +97,35 @@ lambda.list_functions()
 ... mocked response will be returned
 ```
 
+#### Attaching to the default session
+
+Sometimes, Placebo needs to be attached to the Boto3 [default session](http://boto3.readthedocs.io/en/latest/guide/session.html#default-session)
+object.
+
+To attach Placebo to the default session, it is necessary to explicitly set up
+the default session by making a call to `boto3.setup_default_session()`.  The
+default session is then accessible at `boto3.DEFAULT_SESSION`.
+
+For example:
+
+~~~ python
+import boto3
+import placebo
+
+# Explicity set up the default session and attach Placebo to it.
+boto3.setup_default_session()
+session = boto3.DEFAULT_SESSION
+pill = placebo.attach(session, data_path='/path/to/response/directory')
+pill.record()
+
+# Now make Boto3 calls using the default session.
+client = boto3.client('ec2')
+client.describe_images(DryRun=False)
+~~~
+
+This is particularly useful if you are writing tests for legacy code that
+makes use of the Boto3 default session.
+
 #### Manual Mocking
 
 You can also add mocked responses manually:
