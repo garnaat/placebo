@@ -67,7 +67,7 @@ def serialize(obj):
         result['microsecond'] = obj.microsecond
         return result
     if isinstance(obj, StreamingBody):
-        result['body'] = obj.read()
+        result['body'] = obj.read().decode("utf-8")
         obj._raw_stream = StringIO(result['body'])
         obj._amount_read = 0
         return result
