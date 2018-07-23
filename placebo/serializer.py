@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, tzinfo
 from botocore.response import StreamingBody
 from six import StringIO
 
+
 class UTC(tzinfo):
     """UTC"""
 
@@ -28,7 +29,9 @@ class UTC(tzinfo):
     def dst(self, dt):
         return timedelta(0)
 
+
 utc = UTC()
+
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -66,10 +69,17 @@ def serialize(obj):
         result['second'] = obj.second
         result['microsecond'] = obj.microsecond
         return result
-    if isinstance(obj, StreamingBody):
+    elif isinstance(obj, StreamingBody):
         result['body'] = obj.read()
         obj._raw_stream = StringIO(result['body'])
         obj._amount_read = 0
         return result
+    elif isinstance(obj, bytes):
+        try:
+            # If an object could be decoded.
+            result['body'] = obj.decode('utf-8')
+        except UnicodeError:
+            # If the object is a file omit the value and finish recording.
+            result['body'] = ''
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
