@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import json
+import io
 import os
 import glob
 import re
+import shutil
 import uuid
 import logging
 
@@ -225,6 +228,19 @@ class Pill(object):
                 raise IOError('response file ({0}) not found'.format(fn))
         return fn
 
+    def copy_json_data(self, json_data):
+        try:
+            return copy.deepcopy(json_data)
+        except TypeError:
+            copy_json_data = {k:v for k, v in json_data.items() if k != 'Body'}
+            buffer = io.BytesIO()
+            shutil.copyfileobj(json_data['Body'], buffer)
+            buffer.seek(0)
+            json_data['Body']._amount_read = 0
+            json_data['Body']._raw_stream = io.BytesIO(buffer.getvalue())
+            copy_json_data['Body'] = buffer
+            return copy_json_data
+
     def save_response(self, service, operation, response_data,
                       http_response=200):
         """
@@ -240,7 +256,8 @@ class Pill(object):
         filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
         json_data = {'status_code': http_response,
-                     'data': response_data}
+                     'data': self.copy_json_data(response_data)}
+
         with open(filepath, 'w') as fp:
             json.dump(json_data, fp, indent=4, default=serialize)
 

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from datetime import datetime, timedelta, tzinfo
-from botocore.response import StreamingBody
-from six import StringIO
+import io
+
 
 class UTC(tzinfo):
     """UTC"""
@@ -28,7 +28,9 @@ class UTC(tzinfo):
     def dst(self, dt):
         return timedelta(0)
 
+
 utc = UTC()
+
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -42,8 +44,8 @@ def deserialize(obj):
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
         return datetime(tzinfo=utc, **target)
-    if class_name == 'StreamingBody':
-        return StringIO(target['body'])
+    if class_name == 'BytesIO':
+        return io.BytesIO(bytes(target['body']))
     # Return unrecognized structures as-is
     return obj
 
@@ -66,10 +68,13 @@ def serialize(obj):
         result['second'] = obj.second
         result['microsecond'] = obj.microsecond
         return result
-    if isinstance(obj, StreamingBody):
+    if isinstance(obj, io.BytesIO):
         result['body'] = obj.read()
-        obj._raw_stream = StringIO(result['body'])
-        obj._amount_read = 0
+        try:
+            result['body'] = result['body'].decode('utf-8')
+        except UnicodeError:
+            # Could be turned back to bytes `bytes(result['body'])`
+            result['body'] = list(result['body'])
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
