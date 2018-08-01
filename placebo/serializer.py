@@ -45,7 +45,9 @@ def deserialize(obj):
     if class_name == 'datetime':
         return datetime(tzinfo=utc, **target)
     if class_name == 'BytesIO':
-        return io.BytesIO(bytes(target['body']))
+        targ = target['body']
+        targ_body = targ.encode('utf-8') if isinstance(targ, str) else bytes(target['body'])
+        return io.BytesIO(targ_body)
     # Return unrecognized structures as-is
     return obj
 
@@ -71,7 +73,7 @@ def serialize(obj):
     if isinstance(obj, io.BytesIO):
         result['body'] = obj.read()
         try:
-            result['body'] = result['body'].decode('utf-8')
+            result['body'] = result['body']
         except UnicodeError:
             # Could be turned back to bytes `bytes(result['body'])`
             result['body'] = list(result['body'])
