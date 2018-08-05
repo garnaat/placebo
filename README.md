@@ -1,11 +1,15 @@
-placebo
+lpr-placebo
 =======
 
 [![Build Status](https://travis-ci.org/garnaat/placebo.svg)](https://travis-ci.org/garnaat/placebo)
 
 [![Code Health](https://landscape.io/github/garnaat/placebo/master/landscape.svg?style=flat)](https://landscape.io/github/garnaat/placebo/master)
 
-Placebo allows you to mock boto3 calls that look just like normal calls but
+
+`lpr-placebo` is a forked [`placebo` library](https://github.com/garnaat/placebo) maintained
+by LaunchPad Recruits team for the team purposes and for community needs.
+
+`lpr-placebo` allows you to mock boto3 calls that look just like normal calls but
 actually have no effect at all.  It does this by allowing you to record a set
 of calls and save them to a data file and then replay those calls later
 (e.g. in a unit test) without ever hitting the AWS endpoints.
@@ -14,7 +18,7 @@ Installation
 ------------
 
 ```
-$ pip install placebo
+$ pip install lpr-placebo
 ```
 
 Quickstart
@@ -162,3 +166,19 @@ After the JSON has been created, simply drop the environment variables and re-ru
 ```bash
 $ nosetests tests.tests:TestFoo.test_create_iam_roles
 ```
+
+What's new in v0.8.2
+--------
+
+### Binary files recording.
+
+Any binary files passed along with AWS services responses will be recorded as json lists
+of bytes and deserialized at a record replay. Any operation with an original file
+could be tested as it been executed with a real service call.
+
+
+Deprecation
+-----------
+
+Support of 2.x Python verstions is deprecated. Versions >= 0.8.2 could contain inconsistencies
+with 2.x Python versions.
