@@ -16,7 +16,11 @@ import unittest
 import os
 
 import boto3
-import mock
+
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 
 import placebo.pill
 

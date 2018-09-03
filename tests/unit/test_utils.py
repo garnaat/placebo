@@ -3,7 +3,11 @@ import os
 import shutil
 
 import boto3
-import mock
+
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 
 from placebo.utils import placebo_session
 

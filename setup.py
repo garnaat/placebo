@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='placebo',
-    version='0.8.1',
+    version='0.8.2',
     description='Make boto3 calls that look real but have no effect',
     long_description=open('README.md').read(),
     author='Mitch Garnaat',
@@ -14,7 +14,7 @@ setup(
     packages=find_packages(exclude=['tests*']),
     package_dir={'placebo': 'placebo'},
     license="Apache License 2.0",
-    classifiers=(
+    classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -26,6 +26,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5'
-    ),
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7'
+    ],
 )
