@@ -47,6 +47,8 @@ class Pill(object):
         self._index = {}
         self.events = []
         self.clients = []
+        self.fake_account_number = ':123456789012:'
+        self.mask_account_number = False
 
     @property
     def mode(self):
@@ -239,6 +241,8 @@ class Pill(object):
         LOG.debug('save_response: %s.%s', service, operation)
         filepath = self.get_new_file_path(service, operation)
         LOG.debug('save_response: path=%s', filepath)
+        if self.mask_account_number:
+            response_data = self._arn_replacement(response_data)
         json_data = {'status_code': http_response,
                      'data': response_data}
         with open(filepath, 'w') as fp:
@@ -263,3 +267,9 @@ class Pill(object):
         operation = model.name
         LOG.debug('_make_request: %s.%s', service, operation)
         return self.load_response(service, operation)
+
+    def _arn_replacement(self, json_response):
+        """Replacing the recording ARN with a fake ARN value."""
+        json_value = json.dumps(json_response)
+        masked_arn = re.sub(':(\d{12}:)', self.fake_account_number, json_value)
+        return json.loads(masked_arn)
