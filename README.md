@@ -6,7 +6,7 @@ lpr-placebo
 [![Code Health](https://landscape.io/github/garnaat/placebo/master/landscape.svg?style=flat)](https://landscape.io/github/garnaat/placebo/master)
 
 
-`lpr-placebo` is a forked [`placebo` library](https://github.com/garnaat/placebo) maintained
+`lpr-placebo` is a forked [`placebo` library](https://github.com/garnaat/placebo) and maintained
 by LaunchPad Recruits team for the team purposes and for community needs.
 
 `lpr-placebo` allows you to mock boto3 calls that look just like normal calls but
@@ -167,7 +167,7 @@ After the JSON has been created, simply drop the environment variables and re-ru
 $ nosetests tests.tests:TestFoo.test_create_iam_roles
 ```
 
-What's new in v0.8.2
+What's new in v0.9.0
 --------
 
 ### Binary files recording.
@@ -180,5 +180,5 @@ could be tested as it been executed with a real service call.
 Deprecation
 -----------
 
-Support of 2.x Python verstions is deprecated. Versions >= 0.8.2 could contain inconsistencies
+Support of 2.x Python versions is deprecated. Versions >= 0.8.2 could contain inconsistencies
 with 2.x Python versions.
