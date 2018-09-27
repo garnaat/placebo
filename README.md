@@ -174,7 +174,7 @@ What's new in v0.9.0
 
 Any binary files passed along with AWS services responses will be recorded as json lists
 of bytes and deserialized at a record replay. Any operation with an original file
-could be tested as it been executed with a real service call.
+could be tested as it's been executed with a real service call.
 
 
 Deprecation
