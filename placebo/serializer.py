@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import pickle
+import datetime
 from datetime import datetime, timedelta, tzinfo
 from botocore.response import StreamingBody
 from six import StringIO
@@ -29,6 +32,17 @@ class UTC(tzinfo):
         return timedelta(0)
 
 utc = UTC()
+
+class Format:
+    """
+    Serialization formats
+    """
+    JSON = "json"
+    PICKLE = "pickle"
+
+    DEFAULT = JSON
+    ALLOWED = [JSON, PICKLE]
+
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -73,3 +87,29 @@ def serialize(obj):
         return result
     # Raise a TypeError if the object isn't recognized
     raise TypeError("Type not serializable")
+
+
+def json_serialize(obj, fp):
+    """ Serialize ``obj`` as a JSON formatted stream to ``fp`` """
+    json.dump(obj, fp, indent=4, default=serialize)
+
+
+def json_deserialize(fp):
+    """ Deserialize ``fp`` JSON content to a Python object."""
+    return json.load(fp, object_hook=deserialize)
+
+
+def get_serializer(serializer_format):
+    """ Get the serializer for a specific format """
+    if serializer_format == Format.JSON:
+        return json_serialize
+    if serializer_format == Format.PICKLE:
+        return pickle.dump
+
+
+def get_deserializer(serializer_format):
+    """ Get the deserializer for a specific format """
+    if serializer_format == Format.JSON:
+        return json_deserialize
+    if serializer_format == Format.PICKLE:
+        return pickle.load
