@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Mitch Garnaat
+# Copyright (c) 2015-2019 Mitch Garnaat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,12 @@ import datetime
 import unittest
 import json
 
-from placebo.serializer import serialize, deserialize, utc
+from six import StringIO, BytesIO
+
+from placebo.serializer import serialize, deserialize, utc, Format
+from placebo.serializer import get_serializer, get_deserializer
+from placebo.serializer import _serialize_json, _deserialize_json
+from placebo.serializer import _serialize_pickle, _deserialize_pickle
 
 
 date_sample = {
@@ -38,3 +43,37 @@ class TestSerializers(unittest.TestCase):
     def test_datetime_from_json(self):
         response = json.loads(date_json, object_hook=deserialize)
         self.assertEqual(response, date_sample)
+
+    def test_roundtrip_json(self):
+        ser = get_serializer(Format.JSON)
+        deser = get_deserializer(Format.JSON)
+        fp = StringIO()
+        ser(date_sample, fp)
+        fp.seek(0)
+        obj = deser(fp)
+        self.assertEqual(obj, date_sample)
+
+    def test_roundtrip_pickle(self):
+        ser = get_serializer(Format.PICKLE)
+        deser = get_deserializer(Format.PICKLE)
+        fp = BytesIO()
+        ser(date_sample, fp)
+        fp.seek(0)
+        obj = deser(fp)
+        self.assertEqual(obj, date_sample)
+
+    def test_get_serializer_json(self):
+        ser = get_serializer(Format.JSON)
+        self.assertEqual(ser, _serialize_json)
+
+    def test_get_deserializer_json(self):
+        ser = get_deserializer(Format.JSON)
+        self.assertEqual(ser, _deserialize_json)
+
+    def test_get_serializer_pickle(self):
+        ser = get_serializer(Format.PICKLE)
+        self.assertEqual(ser, _serialize_pickle)
+
+    def test_get_deserialize_pickle(self):
+        ser = get_deserializer(Format.PICKLE)
+        self.assertEqual(ser, _deserialize_pickle)

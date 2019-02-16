@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Mitch Garnaat
+# Copyright (c) 2015-2019 Mitch Garnaat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ class TestPlacebo(unittest.TestCase):
         service = 'ec2'
         operation = 'DescribeAddresses'
         filename = '{0}.{1}.{2}_2.json'.format(self.pill.prefix, service,
-                                            operation)
+                                               operation)
         target = os.path.join(self.data_path, filename)
         self.assertEqual(self.pill.get_new_file_path(service, operation),
                          target)
@@ -78,7 +78,7 @@ class TestPlacebo(unittest.TestCase):
         service = 'ec2'
         operation = 'DescribeAddresses'
         filename = '{0}.{1}.{2}_1.json'.format(self.pill.prefix, service,
-                                            operation)
+                                               operation)
         target = os.path.join(self.data_path, filename)
         (file_path, _) = self.pill.get_next_file_path(service, operation)
         self.assertEqual(file_path, target)

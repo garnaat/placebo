@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Mitch Garnaat
+# Copyright (c) 2015-2019 Mitch Garnaat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,23 +15,24 @@
 import json
 import pickle
 import datetime
-from datetime import datetime, timedelta, tzinfo
 from botocore.response import StreamingBody
 from six import StringIO
 
-class UTC(tzinfo):
+
+class UTC(datetime.tzinfo):
     """UTC"""
 
     def utcoffset(self, dt):
-        return timedelta(0)
+        return datetime.timedelta(0)
 
     def tzname(self, dt):
         return "UTC"
 
     def dst(self, dt):
-        return timedelta(0)
+        return datetime.timedelta(0)
 
 utc = UTC()
+
 
 class Format:
     """
@@ -43,6 +44,26 @@ class Format:
     DEFAULT = JSON
     ALLOWED = [JSON, PICKLE]
 
+    @classmethod
+    def read_mode(cls, format):
+        """
+        Return the correct read mode for this type of format.
+        """
+        if format == cls.PICKLE:
+            return 'rb'
+        else:
+            return 'r'
+
+    @classmethod
+    def write_mode(cls, format):
+        """
+        Return the correct write mode for this type of format.
+        """
+        if format == cls.PICKLE:
+            return 'wb'
+        else:
+            return 'w'
+
 
 def deserialize(obj):
     """Convert JSON dicts back into objects."""
@@ -52,10 +73,10 @@ def deserialize(obj):
     if '__class__' in target:
         class_name = target.pop('__class__')
     if '__module__' in obj:
-        module_name = obj.pop('__module__')
+        obj.pop('__module__')
     # Use getattr(module, class_name) for custom types if needed
     if class_name == 'datetime':
-        return datetime(tzinfo=utc, **target)
+        return datetime.datetime(tzinfo=utc, **target)
     if class_name == 'StreamingBody':
         return StringIO(target['body'])
     # Return unrecognized structures as-is
@@ -71,7 +92,7 @@ def serialize(obj):
     except AttributeError:
         pass
     # Convert objects to dictionary representation based on type
-    if isinstance(obj, datetime):
+    if isinstance(obj, datetime.datetime):
         result['year'] = obj.year
         result['month'] = obj.month
         result['day'] = obj.day
@@ -89,27 +110,37 @@ def serialize(obj):
     raise TypeError("Type not serializable")
 
 
-def json_serialize(obj, fp):
+def _serialize_json(obj, fp):
     """ Serialize ``obj`` as a JSON formatted stream to ``fp`` """
     json.dump(obj, fp, indent=4, default=serialize)
 
 
-def json_deserialize(fp):
+def _deserialize_json(fp):
     """ Deserialize ``fp`` JSON content to a Python object."""
     return json.load(fp, object_hook=deserialize)
+
+
+def _serialize_pickle(obj, fp):
+    """ Serialize ``obj`` as a PICKLE formatted stream to ``fp`` """
+    pickle.dump(obj, fp)
+
+
+def _deserialize_pickle(fp):
+    """ Deserialize ``fp`` PICKLE content to a Python object."""
+    return pickle.load(fp)
 
 
 def get_serializer(serializer_format):
     """ Get the serializer for a specific format """
     if serializer_format == Format.JSON:
-        return json_serialize
+        return _serialize_json
     if serializer_format == Format.PICKLE:
-        return pickle.dump
+        return _serialize_pickle
 
 
 def get_deserializer(serializer_format):
     """ Get the deserializer for a specific format """
     if serializer_format == Format.JSON:
-        return json_deserialize
+        return _deserialize_json
     if serializer_format == Format.PICKLE:
-        return pickle.load
+        return _deserialize_pickle

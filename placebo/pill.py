@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Mitch Garnaat
+# Copyright (c) 2015-2019 Mitch Garnaat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ class Pill(object):
             record_format = Format.DEFAULT
 
         self._serializer = get_serializer(record_format)
-        self._filename_re = re.compile(r'.*\..*_(?P<index>\d+).{0}'.format(record_format))
+        self._filename_re = re.compile(r'.*\..*_(?P<index>\d+).{0}'.format(
+            record_format))
         self._record_format = record_format
         self.prefix = prefix
         self._uuid = str(uuid.uuid4())
@@ -215,11 +216,14 @@ class Pill(object):
                     index = i
         index += 1
         return os.path.join(
-            self._data_path, '{0}_{1}.{2}'.format(base_name, index, self.record_format))
+            self._data_path, '{0}_{1}.{2}'.format(
+                base_name, index, self.record_format))
 
     @staticmethod
     def find_file_format(file_name):
-        """ Returns a tuple with the file path and format found, or (None, None) """
+        """
+        Returns a tuple with the file path and format found, or (None, None)
+        """
         for file_format in Format.ALLOWED:
             file_path = '.'.join((file_name, file_format))
             if os.path.exists(file_path):
@@ -227,7 +231,10 @@ class Pill(object):
         return None, None
 
     def get_next_file_path(self, service, operation):
-        """ Returns a tuple with the next file to read and the serializer format used """
+        """
+        Returns a tuple with the next file to read and the serializer
+        format used
+        """
         base_name = '{0}.{1}'.format(service, operation)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
@@ -237,7 +244,8 @@ class Pill(object):
         index = self._index.setdefault(base_name, 1)
 
         while not next_file:
-            file_name = os.path.join(self._data_path, base_name + '_{0}'.format(index))
+            file_name = os.path.join(
+                self._data_path, base_name + '_{0}'.format(index))
             next_file, serializer_format = self.find_file_format(file_name)
             if next_file:
                 self._index[base_name] += 1
@@ -245,7 +253,8 @@ class Pill(object):
                 index = 1
                 self._index[base_name] = 1
             else:
-                raise IOError('response file ({0}.[{1}]) not found'.format(file_name, "|".join(Format.ALLOWED)))
+                raise IOError('response file ({0}.[{1}]) not found'.format(
+                    file_name, "|".join(Format.ALLOWED)))
 
         return next_file, serializer_format
 
@@ -265,14 +274,15 @@ class Pill(object):
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
                 'data': response_data}
-        with open(filepath, 'w') as fp:
+        with open(filepath, Format.write_mode(self.record_format)) as fp:
             self._serializer(data, fp)
 
     def load_response(self, service, operation):
         LOG.debug('load_response: %s.%s', service, operation)
-        (response_file, file_format) = self.get_next_file_path(service, operation)
+        (response_file, file_format) = self.get_next_file_path(
+            service, operation)
         LOG.debug('load_responses: %s', response_file)
-        with open(response_file, 'r') as fp:
+        with open(response_file, Format.read_mode(file_format)) as fp:
             response_data = get_deserializer(file_format)(fp)
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
