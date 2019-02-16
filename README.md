@@ -73,9 +73,9 @@ created from the session will be placebo-aware.  To record responses, just
 create the client and use it as you normally would.
 
 ~~~ python
-lambda = session.client('lambda')
-lambda.list_functions()
-... more lambda calls ...
+aws_lambda = session.client('lambda')
+aws_lambda.list_functions()
+# ... more lambda calls ...
 ~~~
 
 Each response will be saved as an individual JSON data file in the ``data_path``
@@ -92,9 +92,9 @@ import placebo
 session = boto3.Session()
 pill = placebo.attach(session, data_path='/path/to/response/directory')
 pill.playback()
-lambda = session.client('lambda')
-lambda.list_functions()
-... mocked response will be returned
+aws_lambda = session.client('lambda')
+aws_lambda.list_functions()
+# ... mocked response will be returned
 ~~~
 
 #### Attaching to the default session
