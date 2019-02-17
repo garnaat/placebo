@@ -1,11 +1,29 @@
 language: python
-python:
-  - "2.6"
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "3.6"
+matrix:
+  include:
+    - python: 2.6
+      dist: trusty
+      sudo: false
+    - python: 2.7
+      dist: trusty
+      sudo: false
+    - python: 3.3
+      dist: trusty
+      sudo: false
+    - python: 3.4
+      dist: trusty
+      sudo: false
+    - python: 3.5
+      dist: trusty
+      sudo: false
+    - python: 3.6
+      dist: trusty
+      sudo: false
+    - python: 3.7
+      dist: xenial
+      sudo: true
+
+cache: pip
 before_install:
   - pip install codecov
 install:
@@ -13,5 +31,5 @@ install:
   - pip install coverage
 script: nosetests tests/unit --cover-erase --with-coverage --cover-package placebo
 after_success:
-  - rm tests/coverage.xml && mv tests/.coverage ./ && codecov
+  - codecov
 
