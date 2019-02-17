@@ -6,8 +6,12 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+before_install:
+  - pip install codecov
 install:
   - pip install -r requirements.txt
-  - pip install coverage python-coveralls
+  - pip install coverage
 script: nosetests tests/unit --cover-erase --with-coverage --cover-package placebo
-after_success: coveralls
+after_success:
+  - rm tests/coverage.xml && mv tests/.coverage ./ && codecov
+
