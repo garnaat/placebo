@@ -206,7 +206,7 @@ class Pill(object):
             base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_new_file_path: %s', base_name)
         index = 0
-        glob_pattern = os.path.join(self._data_path, base_name + '*')
+        glob_pattern = os.path.join(self._data_path, base_name + '_*')
         for file_path in glob.glob(glob_pattern):
             file_name = os.path.basename(file_path)
             m = self._filename_re.match(file_name)
