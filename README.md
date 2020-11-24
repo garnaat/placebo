@@ -134,7 +134,7 @@ the responses.
 
 To enable the pickle format:
 ```
-pill = pill = placebo.attach(session, record_format="pickle")
+pill = placebo.attach(session, record_format="pickle")
 ```
 
 #### Manual Mocking
