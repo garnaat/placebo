@@ -69,8 +69,8 @@ class Pill(object):
         self._uuid = str(uuid.uuid4())
         self._data_path = None
         self._mode = None
-        self._services = None
-        self._operations = None
+        self._services = ""
+        self._operations = ""
         self._session = None
         self._marker = {}
         self.events = {}
@@ -169,13 +169,15 @@ class Pill(object):
         pattern used with record(). This is meant to be called from the handlers
         as a workaround for boto3 not supporting globbing natively.
         """
-        if not re.match(self._services, service_name) and re.match(self._operations, operation_name):
-            return False
-        else:
+        if re.match(self._services, service_name) and re.match(self._operations, operation_name):
+            LOG.debug('Handling Event: %s -- %s', service_name, operation_name)
             return True
+        else:
+            LOG.debug('Ignoring Event: %s -- %s', service_name, operation_name)
+            return False
 
 
-    def record(self, services='*', operations='*'):
+    def record(self, services='.*', operations='.*'):
         """
         Record start's recording event's to the filesystem. You can use regex
         expressions for services and operations, however the filtering is done
@@ -184,21 +186,14 @@ class Pill(object):
         if self._mode == 'playback':
             self.stop()
         self._mode = 'record'
-        self._services = services
-        self._operations = operations
 
         # You can't register event's with normal globbing, but we can store our original
         # pattern and check it in the handler to get the same behavior.
-        if '*' in services:
-            services = '*'
+        self._services = services
+        self._operations = operations
 
-        if '*' in operations:
-            operations = '*'
-
-        for service in services.split(','):
-            for operation in operations.split(','):
-                self._register('record', 'before-call', operation, service, self._record_params)
-                self._register('record', 'after-call', operation, service, self._record_data)
+        self._register('record', 'before-call', "*", "*", self._record_params)
+        self._register('record', 'after-call', "*", "*", self._record_data)
 
     def _register(self, mode, event_name, operation, service, function):
         name = '{0}.{1}.{2}'.format(event_name, service.strip(), operation.strip())
