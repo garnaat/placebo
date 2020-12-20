@@ -314,6 +314,11 @@ class Pill(object):
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
                 'data': response_data}
+
+        dir = os.path.dirname(filepath)
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+
         with open(filepath, Format.write_mode(self.record_format)) as fp:
             self._serializer(data, fp)
 
