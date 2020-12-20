@@ -11,12 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import hashlib
+import json
 import os
 import glob
 import re
 import uuid
 import logging
+from typing import List, Dict
 
 from placebo.serializer import Format, get_deserializer, get_serializer
 
@@ -28,6 +30,13 @@ class FakeHttpResponse(object):
 
     def __init__(self, status_code):
         self.status_code = status_code
+
+
+def _filter_hash(unfiltered: Dict, keys: List[str]) -> Dict:
+    filtered = {}
+    for key in keys:
+        filtered[key] = unfiltered[key]
+    return filtered
 
 
 class Pill(object):
@@ -53,7 +62,7 @@ class Pill(object):
         self._mode = None
         self._session = None
         self._index = {}
-        self.events = []
+        self.events = {}
         self.clients = []
 
     @property
@@ -148,62 +157,64 @@ class Pill(object):
         self._mode = 'record'
         for service in services.split(','):
             for operation in operations.split(','):
-                event = 'after-call.{0}.{1}'.format(
-                    service.strip(), operation.strip())
-                LOG.debug('recording: %s', event)
-                self.events.append(event)
-                self._session.events.register(
-                    event, self._record_data, 'placebo-record-mode')
-                for client in self.clients:
-                    client.meta.events.register(
-                        event, self._record_data, 'placebo-record-mode')
+                self._register('record', 'before-call', operation, service, self._record_params)
+                self._register('record', 'after-call', operation, service, self._record_data)
+
+    def _register(self, mode, event_name, operation, service, function):
+        name = '{0}.{1}.{2}'.format(event_name, service.strip(), operation.strip())
+        unique_id = 'placebo-{}-mode-{}-{}'.format(mode, event_name, function.__name__)
+        LOG.debug('recording: %s -- %s', name, unique_id)
+        self.events[name] = unique_id
+        self._session.events.register(name, function, unique_id)
+        for client in self.clients:
+            client.meta.events.register(name, function, unique_id)
 
     def playback(self):
         if self.mode == 'record':
             self.stop()
         if self.mode is None:
             event = 'before-call.*.*'
-            self.events.append(event)
-            self._session.events.register(
-                event, self._mock_request, 'placebo-playback-mode')
             self._mode = 'playback'
-            for client in self.clients:
-                client.meta.events.register(
-                    event, self._mock_request, 'placebo-playback-mode')
+            self._register('playback', 'before-call', '*', '*', self._record_params)
+            self._register('playback', 'before-call', '*', '*', self._mock_request)
 
     def stop(self):
         LOG.debug('stopping, mode=%s', self.mode)
-        if self.mode == 'record':
-            if self._session:
-                for event in self.events:
-                    self._session.events.unregister(
-                        event, unique_id='placebo-record-mode')
-                    for client in self.clients:
-                        client.meta.events.unregister(
-                            event, unique_id='placebo-record-mode')
-                self.events = []
-        elif self.mode == 'playback':
-            if self._session:
-                for event in self.events:
-                    self._session.events.unregister(
-                        event, unique_id='placebo-playback-mode')
-                    for client in self.clients:
-                        client.meta.events.unregister(
-                            event, unique_id='placebo-playback-mode')
-                self.events = []
+        if self._session:
+            for name, unique_id in self.events.items():
+                self._session.events.unregister(name, unique_id=unique_id)
+                for client in self.clients:
+                    client.meta.events.unregister(name, unique_id=unique_id)
+            self.events = {}
         self._mode = None
 
-    def _record_data(self, http_response, parsed, model, **kwargs):
+    def _record_params(self, params, context, **kwargs):
+        # TODO: test pagination
+        # create a unique id for each set of parameters that may the response to vary.
+        params_h = _filter_hash(params, ["url_path", "query_string", "method", "body", "url"])
+        params_h["client_region"] = context["client_region"]
+        params_h = json.dumps(params_h).encode()
+        context["_pill_params_hash"] = hashlib.sha256(params_h).hexdigest()
+
+        LOG.debug('_record_params')
+
+    def _record_data(self, http_response, parsed, model, context, **kwargs):
         LOG.debug('_record_data')
         service_name = model.service_model.endpoint_prefix
         operation_name = model.name
-        self.save_response(service_name, operation_name, parsed,
-                           http_response.status_code)
+        params_hash = context["_pill_params_hash"]
+        self.save_response(service_name, operation_name, params_hash,
+                           parsed, http_response.status_code)
 
-    def get_new_file_path(self, service, operation):
-        base_name = '{0}.{1}'.format(service, operation)
+    def get_new_file_path(self, service, operation, params_hash, paginate=True):
+        base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
+        if not paginate:
+            return os.path.join(
+                self._data_path, '{0}_{1}.{2}'.format(
+                    base_name, 1, self.record_format)
+            )
         LOG.debug('get_new_file_path: %s', base_name)
         index = 0
         glob_pattern = os.path.join(self._data_path, base_name + '_*')
@@ -230,12 +241,12 @@ class Pill(object):
                 return file_path, file_format
         return None, None
 
-    def get_next_file_path(self, service, operation):
+    def get_next_file_path(self, service, operation, params_hash):
         """
         Returns a tuple with the next file to read and the serializer
         format used
         """
-        base_name = '{0}.{1}'.format(service, operation)
+        base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
         LOG.debug('get_next_file_path: %s', base_name)
@@ -258,8 +269,8 @@ class Pill(object):
 
         return next_file, serializer_format
 
-    def save_response(self, service, operation, response_data,
-                      http_response=200):
+    def save_response(self, service, operation, params_hash,
+                      response_data, http_response=200):
         """
         Store a response to the data directory.  The ``operation``
         should be the name of the operation in the service API (e.g.
@@ -269,25 +280,29 @@ class Pill(object):
         multiple responses for a given operation and they will be
         returned in order.
         """
-        LOG.debug('save_response: %s.%s', service, operation)
-        filepath = self.get_new_file_path(service, operation)
+        LOG.debug('save_response: %s.%s.%s', service, operation, params_hash)
+
+        # TODO: tests
+        paginate = response_data.get("NextToken")
+        filepath = self.get_new_file_path(service, operation, params_hash, paginate)
+
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
                 'data': response_data}
         with open(filepath, Format.write_mode(self.record_format)) as fp:
             self._serializer(data, fp)
 
-    def load_response(self, service, operation):
-        LOG.debug('load_response: %s.%s', service, operation)
+    def load_response(self, service, operation, params_hash):
+        LOG.debug('load_response: %s.%s.%s', service, operation, params_hash)
         (response_file, file_format) = self.get_next_file_path(
-            service, operation)
+            service, operation, params_hash)
         LOG.debug('load_responses: %s', response_file)
         with open(response_file, Format.read_mode(file_format)) as fp:
             response_data = get_deserializer(file_format)(fp)
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 
-    def _mock_request(self, **kwargs):
+    def _mock_request(self, context, **kwargs):
         """
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
@@ -295,5 +310,6 @@ class Pill(object):
         model = kwargs.get('model')
         service = model.service_model.endpoint_prefix
         operation = model.name
-        LOG.debug('_make_request: %s.%s', service, operation)
-        return self.load_response(service, operation)
+        params_hash = context["_pill_params_hash"]
+        LOG.debug('_make_request: %s.%s.%s', service, operation, params_hash)
+        return self.load_response(service, operation, params_hash)

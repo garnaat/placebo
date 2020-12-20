@@ -1,0 +1,47 @@
+{
+    "status_code": 200,
+    "data": {
+        "Policy": {
+            "PolicyName": "AWSLambdaFullAccess",
+            "PolicyId": "ANPAI6E2CYYMI4XI7AA5K",
+            "Arn": "arn:aws:iam::aws:policy/AWSLambdaFullAccess",
+            "Path": "/",
+            "DefaultVersionId": "v8",
+            "AttachmentCount": 0,
+            "PermissionsBoundaryUsageCount": 0,
+            "IsAttachable": true,
+            "Description": "Provides full access to Lambda, S3, DynamoDB, CloudWatch Metrics and Logs.",
+            "CreateDate": {
+                "__class__": "datetime",
+                "year": 2015,
+                "month": 2,
+                "day": 6,
+                "hour": 18,
+                "minute": 40,
+                "second": 45,
+                "microsecond": 0
+            },
+            "UpdateDate": {
+                "__class__": "datetime",
+                "year": 2017,
+                "month": 11,
+                "day": 27,
+                "hour": 23,
+                "minute": 22,
+                "second": 38,
+                "microsecond": 0
+            }
+        },
+        "ResponseMetadata": {
+            "RequestId": "9c5fb25b-001c-46f7-aafb-8dbb89182bcd",
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {
+                "x-amzn-requestid": "9c5fb25b-001c-46f7-aafb-8dbb89182bcd",
+                "content-type": "text/xml",
+                "content-length": "860",
+                "date": "Sun, 20 Dec 2020 02:45:25 GMT"
+            },
+            "RetryAttempts": 0
+        }
+    }
+}

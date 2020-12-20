@@ -26,7 +26,7 @@ except ImportError:
 import placebo
 
 
-kp_result_one = {
+kp_result_foo = {
     "KeyPairs": [
         {
             "KeyName": "foo",
@@ -35,7 +35,7 @@ kp_result_one = {
     ]
 }
 
-kp_result_two = {
+kp_result_bar = {
     "KeyPairs": [
         {
             "KeyName": "bar",
@@ -80,7 +80,10 @@ class TestPlacebo(unittest.TestCase):
     def test_ec2(self):
         self.assertEqual(len(os.listdir(self.data_path)), 0)
         self.pill.save_response(
-            'ec2', 'DescribeAddresses', addresses_result_one)
+            'ec2', 'DescribeAddresses',
+            '572586b59ad20af121cc892001c61eeef275d7184f3b28d17e35331536fabdc7',
+            addresses_result_one
+        )
         self.assertEqual(len(os.listdir(self.data_path)), 1)
         self.pill.playback()
         ec2_client = self.session.client('ec2')
@@ -89,27 +92,31 @@ class TestPlacebo(unittest.TestCase):
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
 
+    # newer calls should overwrite older one's
     def test_ec2_multiple_responses(self):
         self.assertEqual(len(os.listdir(self.data_path)), 0)
         self.pill.save_response(
-            'ec2', 'DescribeKeyPairs', kp_result_one)
+            'ec2', 'DescribeKeyPairs',
+            '1ef2ff140613ecd853639efe0dfd5429f40823ffefed62386485b3ace20c9908',
+            kp_result_foo
+        )
         self.assertEqual(len(os.listdir(self.data_path)), 1)
         self.pill.save_response(
-            'ec2', 'DescribeKeyPairs', kp_result_two)
-        self.assertEqual(len(os.listdir(self.data_path)), 2)
+            'ec2', 'DescribeKeyPairs',
+            '1ef2ff140613ecd853639efe0dfd5429f40823ffefed62386485b3ace20c9908',
+            kp_result_bar
+        )
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
         self.pill.playback()
         ec2_client = self.session.client('ec2')
         result = ec2_client.describe_key_pairs()
-        self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
-        result = ec2_client.describe_key_pairs()
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'bar')
-        result = ec2_client.describe_key_pairs()
-        self.assertEqual(result['KeyPairs'][0]['KeyName'], 'foo')
 
     def test_multiple_clients(self):
         self.assertEqual(len(os.listdir(self.data_path)), 0)
+        params_hash = '572586b59ad20af121cc892001c61eeef275d7184f3b28d17e35331536fabdc7'
         self.pill.save_response(
-            'ec2', 'DescribeAddresses', addresses_result_one)
+            'ec2', 'DescribeAddresses', params_hash, addresses_result_one)
         self.pill.playback()
         ec2_client = self.session.client('ec2')
         iam_client = self.session.client('iam')
