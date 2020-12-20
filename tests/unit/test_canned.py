@@ -74,7 +74,7 @@ class TestPlacebo(unittest.TestCase):
         filename = '{0}.{1}.{2}.{3}_1.json'.format(self.pill.prefix, service,
                                                operation, params_hash)
         target = os.path.join(self.data_path, filename)
-        self.assertEqual(self.pill.get_new_file_path(service, operation, params_hash),
+        self.assertEqual(self.pill.get_new_file_path(service, operation, params_hash, 1),
                          target)
 
     def test_prefix_next_file_path(self):

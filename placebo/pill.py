@@ -14,8 +14,6 @@
 import hashlib
 import json
 import os
-import glob
-import pathlib
 import re
 import copy
 import uuid
@@ -70,7 +68,7 @@ class Pill(object):
         self._data_path = None
         self._mode = None
         self._session = None
-        self._index = {}
+        self._marker = {}
         self.events = {}
         self.clients = []
 
@@ -214,13 +212,16 @@ class Pill(object):
         self.save_response(service_name, operation_name, params_hash,
                            parsed, http_response.status_code)
 
-    def get_new_file_path(self, service, operation, params_hash, marker=1):
+    def get_new_file_path(self, service, operation, params_hash, resp_marker=None):
         base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
 
-        if marker:
-            self._index[base_name] = marker
+        marker = self._marker.get(base_name, 1)
+        if resp_marker:
+            self._marker[base_name] = resp_marker
+        else:
+            self._marker[base_name] = 1
 
         # Simplify by just using the marker as index
         return os.path.join(
@@ -239,31 +240,21 @@ class Pill(object):
                 return file_path, file_format
         return None, None
 
-    def get_next_file_path(self, service, operation, params_hash):
+    def get_next_file_path(self, service, operation, params_hash, marker=1):
         """
         Returns a tuple with the next file to read and the serializer
         format used
         """
-        base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
+        base_name = '{0}.{1}.{2}_{3}'.format(service, operation, params_hash, marker)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
-        LOG.debug('get_next_file_path: %s', base_name)
-        next_file = None
-        serializer_format = None
-        index = self._index.setdefault(base_name, 1)
+        file_path = os.path.join(self.data_path, base_name)
+        LOG.debug('get_next_file_path: %s', file_path)
 
-        while not next_file:
-            file_name = os.path.join(
-                self._data_path, base_name + '_{0}'.format(index))
-            next_file, serializer_format = self.find_file_format(file_name)
-            if next_file:
-                self._index[base_name] += 1
-            elif index != 1:
-                index = 1
-                self._index[base_name] = 1
-            else:
-                raise IOError('response file ({0}.[{1}]) not found'.format(
-                    file_name, "|".join(Format.ALLOWED)))
+        next_file, serializer_format = self.find_file_format(file_path)
+        if not next_file:
+            raise IOError('response file ({0}.[{1}]) not found'.format(
+                file_path, "|".join(Format.ALLOWED)))
 
         return next_file, serializer_format
 
@@ -282,8 +273,8 @@ class Pill(object):
 
         # TODO: tests
         # If IsTruncated exists then we want to to name files with an index (...{hash}_{index}.json)
-        marker = response_data.get("Marker", 1)
-        filepath = self.get_new_file_path(service, operation, params_hash, marker)
+        resp_marker = response_data.get("Marker")
+        filepath = self.get_new_file_path(service, operation, params_hash, resp_marker)
 
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
@@ -291,17 +282,17 @@ class Pill(object):
         with open(filepath, Format.write_mode(self.record_format)) as fp:
             self._serializer(data, fp)
 
-    def load_response(self, service, operation, params_hash):
+    def load_response(self, service, operation, params_hash, marker):
         LOG.debug('load_response: %s.%s.%s', service, operation, params_hash)
         (response_file, file_format) = self.get_next_file_path(
-            service, operation, params_hash)
+            service, operation, params_hash, marker)
         LOG.debug('load_responses: %s', response_file)
         with open(response_file, Format.read_mode(file_format)) as fp:
             response_data = get_deserializer(file_format)(fp)
         return (FakeHttpResponse(response_data['status_code']),
                 response_data['data'])
 
-    def _mock_request(self, context, **kwargs):
+    def _mock_request(self, context, params, **kwargs):
         """
         A mocked out make_request call that bypasses all network calls
         and simply returns any mocked responses defined.
@@ -310,5 +301,6 @@ class Pill(object):
         service = model.service_model.endpoint_prefix
         operation = model.name
         params_hash = context["_pill_params_hash"]
+        marker = params["body"].get("Marker", 1)
         LOG.debug('_make_request: %s.%s.%s', service, operation, params_hash)
-        return self.load_response(service, operation, params_hash)
+        return self.load_response(service, operation, params_hash, marker)
