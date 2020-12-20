@@ -46,6 +46,8 @@ def _filter_marker(params_h):
     return params_h
 
 
+
+
 class Pill(object):
 
     clients = []
@@ -67,6 +69,8 @@ class Pill(object):
         self._uuid = str(uuid.uuid4())
         self._data_path = None
         self._mode = None
+        self._services = None
+        self._operations = None
         self._session = None
         self._marker = {}
         self.events = {}
@@ -158,10 +162,39 @@ class Pill(object):
         self._data_path = data_path
         session.events.register('creating-client-class', self._create_client)
 
+
+    def _registered(self, service_name: str, operation_name: str) -> bool:
+        """
+        Returns true if the service_name and operation_name match the regex
+        pattern used with record(). This is meant to be called from the handlers
+        as a workaround for boto3 not supporting globbing natively.
+        """
+        if not re.match(self._services, service_name) and re.match(self._operations, operation_name):
+            return False
+        else:
+            return True
+
+
     def record(self, services='*', operations='*'):
+        """
+        Record start's recording event's to the filesystem. You can use regex
+        expressions for services and operations, however the filtering is done
+        in the handler's itself.
+        """
         if self._mode == 'playback':
             self.stop()
         self._mode = 'record'
+        self._services = services
+        self._operations = operations
+
+        # You can't register event's with normal globbing, but we can store our original
+        # pattern and check it in the handler to get the same behavior.
+        if '*' in services:
+            services = '*'
+
+        if '*' in operations:
+            operations = '*'
+
         for service in services.split(','):
             for operation in operations.split(','):
                 self._register('record', 'before-call', operation, service, self._record_params)
@@ -195,7 +228,12 @@ class Pill(object):
             self.events = {}
         self._mode = None
 
-    def _record_params(self, params, context, **kwargs):
+    def _record_params(self, params, context, model, **kwargs):
+        service_name = model.service_model.endpoint_prefix
+        operation_name = model.name
+        if not self._registered(service_name, operation_name):
+            return
+
         p = copy.deepcopy(params)  # Be careful not to modify the original
         p = _filter_hash(p, ["url_path", "query_string", "method", "body", "url"])
         p = _filter_marker(p)
@@ -208,6 +246,8 @@ class Pill(object):
         LOG.debug('_record_data')
         service_name = model.service_model.endpoint_prefix
         operation_name = model.name
+        if not self._registered(service_name, operation_name):
+            return
         params_hash = context["_pill_params_hash"]
         self.save_response(service_name, operation_name, params_hash,
                            parsed, http_response.status_code)
