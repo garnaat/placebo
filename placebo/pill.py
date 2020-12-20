@@ -15,7 +15,9 @@ import hashlib
 import json
 import os
 import glob
+import pathlib
 import re
+import copy
 import uuid
 import logging
 from typing import List, Dict
@@ -37,6 +39,13 @@ def _filter_hash(unfiltered: Dict, keys: List[str]) -> Dict:
     for key in keys:
         filtered[key] = unfiltered[key]
     return filtered
+
+
+def _filter_marker(params_h):
+    p = params_h.copy()
+    if p['body'].get('Marker'):
+        del(params_h['body']['Marker'])
+    return params_h
 
 
 class Pill(object):
@@ -189,13 +198,12 @@ class Pill(object):
         self._mode = None
 
     def _record_params(self, params, context, **kwargs):
-        # TODO: test pagination
-        # create a unique id for each set of parameters that may the response to vary.
-        params_h = _filter_hash(params, ["url_path", "query_string", "method", "body", "url"])
-        params_h["client_region"] = context["client_region"]
-        params_h = json.dumps(params_h).encode()
+        p = copy.deepcopy(params)  # Be careful not to modify the original
+        p = _filter_hash(p, ["url_path", "query_string", "method", "body", "url"])
+        p = _filter_marker(p)
+        p["client_region"] = context["client_region"]
+        params_h = json.dumps(p).encode()
         context["_pill_params_hash"] = hashlib.sha256(params_h).hexdigest()
-
         LOG.debug('_record_params')
 
     def _record_data(self, http_response, parsed, model, context, **kwargs):
@@ -206,29 +214,19 @@ class Pill(object):
         self.save_response(service_name, operation_name, params_hash,
                            parsed, http_response.status_code)
 
-    def get_new_file_path(self, service, operation, params_hash, paginate=True):
+    def get_new_file_path(self, service, operation, params_hash, marker=1):
         base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
-        if not paginate:
-            return os.path.join(
-                self._data_path, '{0}_{1}.{2}'.format(
-                    base_name, 1, self.record_format)
-            )
-        LOG.debug('get_new_file_path: %s', base_name)
-        index = 0
-        glob_pattern = os.path.join(self._data_path, base_name + '_*')
-        for file_path in glob.glob(glob_pattern):
-            file_name = os.path.basename(file_path)
-            m = self._filename_re.match(file_name)
-            if m:
-                i = int(m.group('index'))
-                if i > index:
-                    index = i
-        index += 1
+
+        if marker:
+            self._index[base_name] = marker
+
+        # Simplify by just using the marker as index
         return os.path.join(
-            self._data_path, '{0}_{1}.{2}'.format(
-                base_name, index, self.record_format))
+            self._data_path,
+            '{0}_{1}.{2}'.format(base_name, marker, self.record_format)
+        )
 
     @staticmethod
     def find_file_format(file_name):
@@ -283,8 +281,9 @@ class Pill(object):
         LOG.debug('save_response: %s.%s.%s', service, operation, params_hash)
 
         # TODO: tests
-        paginate = response_data.get("NextToken")
-        filepath = self.get_new_file_path(service, operation, params_hash, paginate)
+        # If IsTruncated exists then we want to to name files with an index (...{hash}_{index}.json)
+        marker = response_data.get("Marker", 1)
+        filepath = self.get_new_file_path(service, operation, params_hash, marker)
 
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,

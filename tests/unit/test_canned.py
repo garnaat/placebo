@@ -71,7 +71,7 @@ class TestPlacebo(unittest.TestCase):
         service = 'ec2'
         operation = 'DescribeAddresses'
         params_hash = '6b1fd414173035b6f7f70aee6c4aedafd78910bd8632d9f0211057e5fd90bef4'
-        filename = '{0}.{1}.{2}.{3}_2.json'.format(self.pill.prefix, service,
+        filename = '{0}.{1}.{2}.{3}_1.json'.format(self.pill.prefix, service,
                                                operation, params_hash)
         target = os.path.join(self.data_path, filename)
         self.assertEqual(self.pill.get_new_file_path(service, operation, params_hash),
