@@ -24,19 +24,20 @@ import boto3
 import placebo
 
 
-class TestPaginateRecorder(unittest.TestCase):
-    test_policy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "test",
-            "Effect": "Allow",
-            "Action": "*",
-            "Resource": "*"
-        }
-    ]
-}
 
+class TestPaginateRecorder(unittest.TestCase):
+
+    test_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "test",
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*"
+            }
+        ]
+    }
 
     def setUp(self):
         self.data_path = os.path.join(os.path.dirname(__file__), 'responses')
@@ -45,8 +46,8 @@ class TestPaginateRecorder(unittest.TestCase):
             os.mkdir(self.data_path)
 
         self.num_policies = 150
+        self.iam_prefix = '/myprefix'
 
-        #self.mock_iam = moto.mock_iam()
         with mock_iam():
             self.session = boto3.session.Session(region_name='us-east-1')
             self.pill = placebo.attach(self.session, data_path=self.data_path)
@@ -57,8 +58,10 @@ class TestPaginateRecorder(unittest.TestCase):
     def setup_policies(self):
         # Create a bunch of IAM policies with moto
         for i in range(self.num_policies):
-            self.iam.create_policy(PolicyName='test-{}'.format(i), PolicyDocument=json.dumps(self.test_policy))
-
+            self.iam.create_policy(
+                PolicyName='test-{}'.format(i),
+                PolicyDocument=json.dumps(self.test_policy)
+            )
 
         # Run through them once to record them on disk
         self.pill.record()
@@ -87,6 +90,27 @@ class TestPaginateRecorder(unittest.TestCase):
             files = list(p.glob('iam.ListPolicies.*_100.json'))
             self.assertEqual(len(list(files)), 1)
 
+    def test_number_of_paginated_files_created_with_filter(self):
+        with mock_iam():
+            for i in range(self.num_policies):
+                self.iam.create_policy(
+                    PolicyName='test-prefix-{}'.format(i),
+                    PolicyDocument=json.dumps(self.test_policy),
+                    Path=self.iam_prefix
+                )
+            self.pill.record()
+            paginator = self.iam.get_paginator('list_policies')
+            list(paginator.paginate(Scope='Local', PathPrefix=self.iam_prefix))  # make a list to ensure all pages get recorded
+
+            p = Path(self.data_path)
+            self.assertEqual(len(list(p.glob('iam.ListPolicies.*.json'))), 4)
+
+            files = list(p.glob('iam.ListPolicies.*_1.json'))
+            self.assertEqual(len(list(files)), 2)
+
+            files = list(p.glob('iam.ListPolicies.*_100.json'))
+            self.assertEqual(len(list(files)), 2)
+
     def test_number_of_policies_created(self):
             p = Path(self.data_path)
             count = 0
@@ -112,3 +136,10 @@ class TestPaginateRecorder(unittest.TestCase):
         resp = self.iam.get_policy(PolicyArn=self.policy_check_arn)
         resp = self.iam.get_policy_version(PolicyArn=self.policy_check_arn, VersionId=resp['Policy']['DefaultVersionId'])
         self.assertDictEqual(resp['PolicyVersion']['Document'], self.test_policy)
+
+    def test_playback_policy_content(self):
+        self.pill.playback()
+        resp = self.iam.get_policy(PolicyArn=self.policy_check_arn)
+        resp = self.iam.get_policy_version(PolicyArn=self.policy_check_arn, VersionId=resp['Policy']['DefaultVersionId'])
+        self.assertDictEqual(resp['PolicyVersion']['Document'], self.test_policy)
+

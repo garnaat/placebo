@@ -247,13 +247,13 @@ class Pill(object):
         self.save_response(service_name, operation_name, params_hash,
                            parsed, http_response.status_code)
 
-    def get_new_file_path(self, service, operation, params_hash, resp_marker=None):
+    def get_new_file_path(self, service, operation, params_hash, resp_marker=None, is_truncated=None):
         base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
 
         marker = self._marker.get(base_name, 1)
-        if resp_marker:
+        if resp_marker and is_truncated:
             self._marker[base_name] = resp_marker
         else:
             self._marker[base_name] = 1
@@ -309,7 +309,8 @@ class Pill(object):
         # TODO: tests
         # If IsTruncated exists then we want to to name files with an index (...{hash}_{index}.json)
         resp_marker = response_data.get("Marker")
-        filepath = self.get_new_file_path(service, operation, params_hash, resp_marker)
+        is_truncated = response_data.get("IsTruncated")
+        filepath = self.get_new_file_path(service, operation, params_hash, resp_marker, is_truncated)
 
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
