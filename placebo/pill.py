@@ -39,17 +39,7 @@ def _filter_hash(unfiltered: Dict, keys: List[str]) -> Dict:
     return filtered
 
 
-def _filter_marker(params_h):
-    p = params_h.copy()
-    if p['body'].get('Marker'):
-        del(params_h['body']['Marker'])
-    return params_h
-
-
-
-
 class Pill(object):
-
     clients = []
 
     def __init__(self, prefix=None, debug=False, record_format=Format.JSON):
@@ -62,7 +52,7 @@ class Pill(object):
             record_format = Format.DEFAULT
 
         self._serializer = get_serializer(record_format)
-        self._filename_re = re.compile(r'.*\..*_(?P<index>\d+).{0}'.format(
+        self._filename_re = re.compile(r'.*\..*.{0}'.format(
             record_format))
         self._record_format = record_format
         self.prefix = prefix
@@ -72,7 +62,6 @@ class Pill(object):
         self._services = ""
         self._operations = ""
         self._session = None
-        self._marker = {}
         self.events = {}
         self.clients = []
 
@@ -162,7 +151,6 @@ class Pill(object):
         self._data_path = data_path
         session.events.register('creating-client-class', self._create_client)
 
-
     def _registered(self, service_name: str, operation_name: str) -> bool:
         """
         Returns true if the service_name and operation_name match the regex
@@ -175,7 +163,6 @@ class Pill(object):
         else:
             LOG.debug('Ignoring Event: %s -- %s', service_name, operation_name)
             return False
-
 
     def record(self, services='.*', operations='.*'):
         """
@@ -231,7 +218,6 @@ class Pill(object):
 
         p = copy.deepcopy(params)  # Be careful not to modify the original
         p = _filter_hash(p, ["url_path", "query_string", "method", "body", "url"])
-        p = _filter_marker(p)
         p["client_region"] = context["client_region"]
         params_h = json.dumps(p).encode()
         context["_pill_params_hash"] = hashlib.sha256(params_h).hexdigest()
@@ -247,21 +233,14 @@ class Pill(object):
         self.save_response(service_name, operation_name, params_hash,
                            parsed, http_response.status_code)
 
-    def get_new_file_path(self, service, operation, params_hash, resp_marker=None, is_truncated=None):
+    def get_new_file_path(self, service, operation, params_hash):
         base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
 
-        marker = self._marker.get(base_name, 1)
-        if resp_marker and is_truncated:
-            self._marker[base_name] = resp_marker
-        else:
-            self._marker[base_name] = 1
-
-        # Simplify by just using the marker as index
         return os.path.join(
             self._data_path,
-            '{0}_{1}.{2}'.format(base_name, marker, self.record_format)
+            '{0}.{1}'.format(base_name, self.record_format)
         )
 
     @staticmethod
@@ -275,12 +254,12 @@ class Pill(object):
                 return file_path, file_format
         return None, None
 
-    def get_next_file_path(self, service, operation, params_hash, marker=1):
+    def get_next_file_path(self, service, operation, params_hash):
         """
         Returns a tuple with the next file to read and the serializer
         format used
         """
-        base_name = '{0}.{1}.{2}_{3}'.format(service, operation, params_hash, marker)
+        base_name = '{0}.{1}.{2}'.format(service, operation, params_hash)
         if self.prefix:
             base_name = '{0}.{1}'.format(self.prefix, base_name)
         file_path = os.path.join(self.data_path, base_name)
@@ -307,10 +286,7 @@ class Pill(object):
         LOG.debug('save_response: %s.%s.%s', service, operation, params_hash)
 
         # TODO: tests
-        # If IsTruncated exists then we want to to name files with an index (...{hash}_{index}.json)
-        resp_marker = response_data.get("Marker")
-        is_truncated = response_data.get("IsTruncated")
-        filepath = self.get_new_file_path(service, operation, params_hash, resp_marker, is_truncated)
+        filepath = self.get_new_file_path(service, operation, params_hash)
 
         LOG.debug('save_response: path=%s', filepath)
         data = {'status_code': http_response,
@@ -323,10 +299,10 @@ class Pill(object):
         with open(filepath, Format.write_mode(self.record_format)) as fp:
             self._serializer(data, fp)
 
-    def load_response(self, service, operation, params_hash, marker):
+    def load_response(self, service, operation, params_hash):
         LOG.debug('load_response: %s.%s.%s', service, operation, params_hash)
         (response_file, file_format) = self.get_next_file_path(
-            service, operation, params_hash, marker)
+            service, operation, params_hash)
         LOG.debug('load_responses: %s', response_file)
         with open(response_file, Format.read_mode(file_format)) as fp:
             response_data = get_deserializer(file_format)(fp)
@@ -342,6 +318,5 @@ class Pill(object):
         service = model.service_model.endpoint_prefix
         operation = model.name
         params_hash = context["_pill_params_hash"]
-        marker = params["body"].get("Marker", 1)
         LOG.debug('_make_request: %s.%s.%s', service, operation, params_hash)
-        return self.load_response(service, operation, params_hash, marker)
+        return self.load_response(service, operation, params_hash)
