@@ -195,7 +195,6 @@ class Pill(object):
         if self.mode == 'record':
             self.stop()
         if self.mode is None:
-            event = 'before-call.*.*'
             self._mode = 'playback'
             self._register('playback', 'before-call', '*', '*', self._record_params)
             self._register('playback', 'before-call', '*', '*', self._mock_request)
