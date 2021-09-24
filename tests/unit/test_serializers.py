@@ -16,7 +16,9 @@ import datetime
 import unittest
 import json
 
-from six import StringIO, BytesIO
+from io import StringIO, BytesIO
+
+from botocore.response import StreamingBody
 
 from placebo.serializer import serialize, deserialize, utc, Format
 from placebo.serializer import get_serializer, get_deserializer
@@ -33,6 +35,15 @@ date_sample = {
 
 date_json = """{"LoginProfile": {"CreateDate": {"__class__": "datetime", "day": 4, "hour": 9, "microsecond": 0, "minute": 1, "month": 1, "second": 2, "year": 2015}, "UserName": "baz"}}"""
 
+content = b'this is a test'
+stream = BytesIO(content)
+
+streaming_body_sample = {
+    'Body': StreamingBody(stream, len(content))
+}
+
+streaming_body_json = """{"Body": {"__class__": "StreamingBody", "__module__": "botocore.response", "body": "dGhpcyBpcyBhIHRlc3Q="}}"""
+
 
 class TestSerializers(unittest.TestCase):
 
@@ -43,6 +54,15 @@ class TestSerializers(unittest.TestCase):
     def test_datetime_from_json(self):
         response = json.loads(date_json, object_hook=deserialize)
         self.assertEqual(response, date_sample)
+
+    def test_streaming_body_to_json(self):
+        result = json.dumps(
+            streaming_body_sample, default=serialize, sort_keys=True)
+        self.assertEqual(result, streaming_body_json)
+
+    def test_streaming_body_from_json(self):
+        response = json.loads(streaming_body_json, object_hook=deserialize)
+        self.assertEqual(response['Body'].read(), content)
 
     def test_roundtrip_json(self):
         ser = get_serializer(Format.JSON)
