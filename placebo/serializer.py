@@ -96,8 +96,6 @@ def serialize(obj):
     except AttributeError:
         pass
     # Convert objects to dictionary representation based on type
-    print('+++++ %s' % obj)
-    print('+++++ %s' % type(obj))
     if isinstance(obj, datetime.datetime):
         result['year'] = obj.year
         result['month'] = obj.month
