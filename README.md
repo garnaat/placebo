@@ -1,9 +1,7 @@
 placebo
 =======
 
-[![Build Status](https://travis-ci.org/garnaat/placebo.svg)](https://travis-ci.org/garnaat/placebo)
-
-[![Code Health](https://landscape.io/github/garnaat/placebo/master/landscape.svg?style=flat)](https://landscape.io/github/garnaat/placebo/master)
+[![codecov](https://codecov.io/gh/garnaat/placebo/branch/develop/graph/badge.svg?token=ukrsVmWxwv)](https://codecov.io/gh/garnaat/placebo)
 
 Placebo allows you to mock boto3 calls that look just like normal calls but
 actually have no effect at all.  It does this by allowing you to record a set
