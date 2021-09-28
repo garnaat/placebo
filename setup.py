@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='placebo',
-    version='0.9.0',
+    version='0.10.0',
     description='Make boto3 calls that look real but have no effect',
     long_description=open('README.md').read(),
     author='Mitch Garnaat',
