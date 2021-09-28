@@ -8,6 +8,7 @@ setup(
     version='0.10.0',
     description='Make boto3 calls that look real but have no effect',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author='Mitch Garnaat',
     author_email='mitch@garnaat.com',
     url='https://github.com/garnaat/placebo',
