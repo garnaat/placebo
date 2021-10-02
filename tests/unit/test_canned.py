@@ -48,12 +48,6 @@ class TestPlacebo(unittest.TestCase):
         ec2_client = self.session.client('ec2')
         result = ec2_client.describe_addresses()
         self.assertEqual(result['Addresses'][0]['PublicIp'], '52.53.54.55')
-        result = ec2_client.describe_addresses()
-        self.assertEqual(result['Addresses'][0]['PublicIp'], '53.54.55.56')
-        result = ec2_client.describe_addresses()
-        self.assertEqual(result['Addresses'][0]['PublicIp'], '52.53.54.55')
-        result = ec2_client.describe_addresses()
-        self.assertEqual(result['Addresses'][0]['PublicIp'], '53.54.55.56')
 
     def test_describe_key_pairs(self):
         self.pill.playback()
@@ -63,22 +57,33 @@ class TestPlacebo(unittest.TestCase):
         self.assertEqual(result['KeyPairs'][0]['KeyName'], 'FooBar')
         self.assertEqual(result['KeyPairs'][1]['KeyName'], 'FieBaz')
 
+    def test_describe_unordered(self):
+        self.pill.playback()
+        iam = self.session.client('iam')
+
+        resp1 = iam.get_policy(PolicyArn='arn:aws:iam::aws:policy/AWSLambdaFullAccess')
+        resp2 = iam.get_policy(PolicyArn='arn:aws:iam::aws:policy/AmazonEC2FullAccess')
+
+        self.assertNotEqual(resp1['Policy']['PolicyName'], resp2['Policy']['PolicyName'])
+
     def test_prefix_new_file_path(self):
         self.pill.prefix = 'foo'
         service = 'ec2'
         operation = 'DescribeAddresses'
-        filename = '{0}.{1}.{2}_2.json'.format(self.pill.prefix, service,
-                                               operation)
+        params_hash = '6b1fd414173035b6f7f70aee6c4aedafd78910bd8632d9f0211057e5fd90bef4'
+        filename = '{0}.{1}.{2}.{3}_1.json'.format(self.pill.prefix, service,
+                                               operation, params_hash)
         target = os.path.join(self.data_path, filename)
-        self.assertEqual(self.pill.get_new_file_path(service, operation),
+        self.assertEqual(self.pill.get_new_file_path(service, operation, params_hash, 1),
                          target)
 
     def test_prefix_next_file_path(self):
         self.pill.prefix = 'foo'
         service = 'ec2'
         operation = 'DescribeAddresses'
-        filename = '{0}.{1}.{2}_1.json'.format(self.pill.prefix, service,
-                                               operation)
+        params_hash = '6b1fd414173035b6f7f70aee6c4aedafd78910bd8632d9f0211057e5fd90bef4'
+        filename = '{0}.{1}.{2}.{3}_1.json'.format(self.pill.prefix, service,
+                                               operation, params_hash)
         target = os.path.join(self.data_path, filename)
-        (file_path, _) = self.pill.get_next_file_path(service, operation)
+        (file_path, _) = self.pill.get_next_file_path(service, operation, params_hash)
         self.assertEqual(file_path, target)

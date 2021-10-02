@@ -47,25 +47,37 @@ class TestPill(unittest.TestCase):
         self.assertEqual(self.pill.mode, None)
         self.pill.record()
         self.assertEqual(self.pill.mode, 'record')
-        self.assertEqual(self.pill.events, ['after-call.*.*'])
+        self.assertEqual(
+            self.pill.events,
+            {
+                'before-call.*.*': 'placebo-record-mode-before-call-_record_params',
+                'after-call.*.*': 'placebo-record-mode-after-call-_record_data'
+            })
         self.pill.stop()
         self.assertEqual(self.pill.mode, None)
-        self.assertEqual(self.pill.events, [])
+        self.assertEqual(self.pill.events, {})
         self.pill.record('ec2')
         self.pill.record('iam', 'ListUsers')
         self.assertEqual(self.pill.mode, 'record')
-        self.assertEqual(self.pill.events, ['after-call.ec2.*',
-                                            'after-call.iam.ListUsers'])
+        self.assertEqual(
+            self.pill.events,
+            {
+                'after-call.ec2.*':           'placebo-record-mode-after-call-_record_data',
+                'after-call.iam.ListUsers':   'placebo-record-mode-after-call-_record_data',
+                'before-call.ec2.*':          'placebo-record-mode-before-call-_record_params',
+                'before-call.iam.ListUsers':  'placebo-record-mode-before-call-_record_params'
+            }
+        )
         self.pill.stop()
         self.assertEqual(self.pill.mode, None)
-        self.assertEqual(self.pill.events, [])
+        self.assertEqual(self.pill.events, {})
 
     def test_playback(self):
         self.pill.playback()
         self.assertEqual(self.pill.mode, 'playback')
-        self.assertEqual(self.pill.events, ['before-call.*.*'])
+        self.assertDictEqual(self.pill.events, {'before-call.*.*': 'placebo-playback-mode-before-call-_mock_request'})
         self.pill.stop()
-        self.assertEqual(self.pill.events, [])
+        self.assertEqual(self.pill.events, {})
 
     def test_clients(self):
         ec2 = self.session.client('ec2')

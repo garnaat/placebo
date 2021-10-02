@@ -1,0 +1,47 @@
+{
+    "status_code": 200,
+    "data": {
+        "Policy": {
+            "PolicyName": "AmazonEC2FullAccess",
+            "PolicyId": "ANPAI3VAJF5ZCRZ7MCQE6",
+            "Arn": "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
+            "Path": "/",
+            "DefaultVersionId": "v5",
+            "AttachmentCount": 0,
+            "PermissionsBoundaryUsageCount": 0,
+            "IsAttachable": true,
+            "Description": "Provides full access to Amazon EC2 via the AWS Management Console.",
+            "CreateDate": {
+                "__class__": "datetime",
+                "year": 2015,
+                "month": 2,
+                "day": 6,
+                "hour": 18,
+                "minute": 40,
+                "second": 15,
+                "microsecond": 0
+            },
+            "UpdateDate": {
+                "__class__": "datetime",
+                "year": 2018,
+                "month": 11,
+                "day": 27,
+                "hour": 2,
+                "minute": 16,
+                "second": 56,
+                "microsecond": 0
+            }
+        },
+        "ResponseMetadata": {
+            "RequestId": "8596c2f4-bca1-471a-874c-361ef8d5fbcb",
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {
+                "x-amzn-requestid": "8596c2f4-bca1-471a-874c-361ef8d5fbcb",
+                "content-type": "text/xml",
+                "content-length": "852",
+                "date": "Sun, 20 Dec 2020 02:45:25 GMT"
+            },
+            "RetryAttempts": 0
+        }
+    }
+}
